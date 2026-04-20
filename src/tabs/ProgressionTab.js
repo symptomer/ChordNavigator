@@ -21,6 +21,8 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
     bpm, setBpm, vol,
     saved, loadSaved, saveProg, deleteSaved,
     playChord,
+    measureBreaks, setMeasureBreaks,
+    maxProg, setMaxProg,
   } = useApp();
 
   const ivRef   = useRef(null);
@@ -38,6 +40,16 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
 
   function removeSlot(i) {
     setProgression(prev => prev.filter((_, idx) => idx !== i));
+    // measureBreaks 인덱스 조정
+    setMeasureBreaks(prev => {
+      const adjusted = prev.map(b => b > i ? b - 1 : b);
+      return adjusted.filter((b, idx) => idx === 0 || b > adjusted[idx - 1]);
+    });
+  }
+
+  function addMeasure() {
+    setMeasureBreaks(prev => [...prev, maxProg]);
+    setMaxProg(prev => prev + MEASURE_SIZE);
   }
 
   function stopPlay() {
@@ -113,15 +125,22 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
     ? (VAR_IV[playingChord.variant] || VAR_IV[playingChord.quality === 'min' ? 'm' : playingChord.quality === 'dim' ? '°' : ''] || [0,4,7])
     : null;
 
-  // 2마디 슬롯 렌더
-  function renderMeasure(measureIdx) {
-    const start = measureIdx * MEASURE_SIZE;
+  // 동적 마디 슬롯 렌더
+  function renderMeasure(measureIdx, startIdx) {
+    const isLast = measureIdx === measureBreaks.length - 1;
     return (
-      <View style={styles.measure}>
-        <Text style={styles.measureLabel}>마디 {measureIdx + 1}</Text>
+      <View key={measureIdx} style={[styles.measure, measureIdx > 0 && styles.measureSep]}>
+        <View style={styles.measureHeaderRow}>
+          <Text style={styles.measureLabel}>마디 {measureIdx + 1}</Text>
+          {isLast && (
+            <TouchableOpacity onPress={addMeasure} style={styles.addMeasureBtn}>
+              <Text style={styles.addMeasureBtnText}>+ 마디</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <View style={styles.measureSlots}>
           {Array.from({ length: MEASURE_SIZE }).map((_, si) => {
-            const i = start + si;
+            const i = startIdx + si;
             const p = progression[i];
             return (
               <TouchableOpacity
@@ -160,12 +179,11 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
         </View>
       </View>
 
-      {/* 2마디 슬롯 */}
+      {/* 동적 마디 슬롯 */}
       <Text style={[styles.label, { marginBottom: 8 }]}>
-        코드 진행 ({progression.length}/16)
+        코드 진행 ({progression.length}/{maxProg})
       </Text>
-      {renderMeasure(0)}
-      {renderMeasure(1)}
+      {measureBreaks.map((startIdx, mIdx) => renderMeasure(mIdx, startIdx))}
 
       {/* 액션 버튼 */}
       <View style={styles.actions}>
@@ -186,7 +204,7 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
         <TouchableOpacity style={styles.btn} onPress={handleMidi}>
           <Text style={styles.btnText}>↓ MIDI</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.btn} onPress={() => { stopPlay(); setProgression([]); }}>
+        <TouchableOpacity style={styles.btn} onPress={() => { stopPlay(); setProgression([]); setMeasureBreaks([0]); setMaxProg(16); }}>
           <Text style={styles.btnText}>✕ 초기화</Text>
         </TouchableOpacity>
       </View>
@@ -300,9 +318,13 @@ const styles = StyleSheet.create({
   sugChords:      { fontSize: 10, color: COLORS.text2 },
 
   // 마디
-  measure:        { marginBottom: 10 },
-  measureLabel:   { fontSize: 9, color: COLORS.text2, letterSpacing: 1, marginBottom: 4 },
-  measureSlots:   { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  measure:           { marginBottom: 10 },
+  measureSep:        { paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.border },
+  measureHeaderRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  measureLabel:      { fontSize: 9, color: COLORS.text2, letterSpacing: 1 },
+  addMeasureBtn:     { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 5, borderWidth: 1, borderColor: COLORS.accent, backgroundColor: COLORS.accent + '22' },
+  addMeasureBtnText: { fontSize: 9, color: COLORS.accent, fontWeight: '700' },
+  measureSlots:      { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   slot:           { width: '23%', paddingVertical: 8, borderWidth: 1, borderStyle: 'dashed', borderColor: COLORS.border, borderRadius: 7, alignItems: 'center' },
   slotFilled:     { borderStyle: 'solid', borderColor: COLORS.accent },
   slotPlaying:    { backgroundColor: COLORS.accent, borderStyle: 'solid' },
