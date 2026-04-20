@@ -1,5 +1,24 @@
 import { NOTES, MAJ_IV, MIN_IV, MAJ_Q, MIN_Q, DEG, VAR_IV, CHORD_POSITIONS } from '../data/musicData';
 
+// ── 플랫 표기 (A# → Bb 등) ─────────────────────────────────────
+export const TO_FLAT = { 'A#':'Bb', 'D#':'Eb', 'G#':'Ab', 'C#':'Db', 'F#':'Gb' };
+const FLAT_MAJOR = new Set(['F','Bb','Eb','Ab','Db','Gb']);
+const FLAT_MINOR = new Set(['D','G','C','F','Bb','Eb','Ab']);
+
+export function usesFlatDisplay(key, mode) {
+  return (mode === 'major' && FLAT_MAJOR.has(key)) ||
+         (mode === 'minor' && FLAT_MINOR.has(key));
+}
+
+// 코드명 표시용: 'A#m7' → 'Bbm7' (flat 키에서만)
+export function flatChordName(name, key, mode) {
+  if (!name || !usesFlatDisplay(key, mode)) return name;
+  for (const [sharp, flat] of Object.entries(TO_FLAT)) {
+    if (name.startsWith(sharp)) return flat + name.slice(sharp.length);
+  }
+  return name;
+}
+
 export function ki(k) {
   return NOTES.indexOf(k);
 }

@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { COLORS, LEVEL_DEFAULT, LEVEL_VARS, NOTES, GENRE_PROGS, VAR_IV } from '../data/musicData';
-import { getChords, getChordTones, getSubstitutes, ki, getGuitarShapes, getVariantKey } from '../utils/musicUtils';
+import { getChords, getChordTones, getSubstitutes, ki, getGuitarShapes, getVariantKey, flatChordName } from '../utils/musicUtils';
 import GuitarDiagram from '../components/GuitarDiagram';
 import PianoDiagram  from '../components/PianoDiagram';
 
@@ -478,7 +478,7 @@ export default function ChordsTab({ onTranspose }) {
                           style={[styles.histChip, isLatest && styles.histChipLast, isActive && styles.histChipActive]}
                           onPress={() => navigateToHistChord(p)}>
                           <Text style={[styles.histName, isLatest && styles.histNameLast, isActive && styles.histNameActive]}>
-                            {p.name}
+                            {flatChordName(p.name, activeKey, selMode)}
                           </Text>
                           <TouchableOpacity onPress={() => removeFromHistory(i)} hitSlop={{top:6,bottom:6,left:4,right:4}}>
                             <Text style={styles.histX}>✕</Text>
@@ -508,7 +508,7 @@ export default function ChordsTab({ onTranspose }) {
                     <React.Fragment key={j}>
                       {j > 0 && <Text style={styles.sugArrow}>→</Text>}
                       <Text style={[styles.sugChord, isInMyProg && styles.sugChordHighlight]}>
-                        {name}
+                        {flatChordName(name, activeKey, selMode)}
                       </Text>
                     </React.Fragment>
                   );
@@ -540,7 +540,7 @@ export default function ChordsTab({ onTranspose }) {
           const isPredicted = predictedIdxs.includes(idx);
           const inProg      = progression.some(p => p.note === c2.note);
           const suffix      = getLevelSuffix(c2.quality, idx);
-          const displayName = c2.note + suffix;
+          const displayName = flatChordName(c2.note + suffix, activeKey, selMode);
 
           return (
             <TouchableOpacity
@@ -574,7 +574,7 @@ export default function ChordsTab({ onTranspose }) {
         <View style={styles.predBox}>
           <Text style={styles.predLabel}>다음 추천 ›</Text>
           <Text style={styles.predChords}>
-            {predictedIdxs.map(i => chords[i]?.name).join('  ·  ')}
+            {predictedIdxs.map(i => flatChordName(chords[i]?.name, activeKey, selMode)).join('  ·  ')}
           </Text>
         </View>
       )}
@@ -606,7 +606,7 @@ export default function ChordsTab({ onTranspose }) {
                     </View>
                     {/* 코드 흐름 */}
                     <View style={styles.gpsChordRow}>
-                      <Text style={[styles.gpsCurChord, { color: routeColor }]}>{curChord.name}</Text>
+                      <Text style={[styles.gpsCurChord, { color: routeColor }]}>{flatChordName(curChord.name, activeKey, selMode)}</Text>
                       <Text style={styles.gpsArrow}>→</Text>
                       {route.chords.map((ch, ci) => (
                         <React.Fragment key={ci}>
@@ -618,7 +618,7 @@ export default function ChordsTab({ onTranspose }) {
                                          : ch.includes('°') ? 'dim' : 'maj';
                               selectChord({ note, quality: qual, degree: '', name: ch });
                             }}>
-                            <Text style={[styles.gpsChordText, { color: routeColor }]}>{ch}</Text>
+                            <Text style={[styles.gpsChordText, { color: routeColor }]}>{flatChordName(ch, activeKey, selMode)}</Text>
                           </TouchableOpacity>
                           {ci < route.chords.length - 1 && (
                             <Text style={styles.gpsArrow}>→</Text>
@@ -779,6 +779,7 @@ export default function ChordsTab({ onTranspose }) {
                 <GuitarDiagram
                   shape={positions[clampedPos] || null}
                   name={curChord.name}
+                  displayName={flatChordName(curChord.name, activeKey, selMode)}
                   posLabel={positions[clampedPos]?.pos}
                 />
               ) : (

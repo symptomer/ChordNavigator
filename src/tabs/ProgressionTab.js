@@ -4,9 +4,11 @@ import {
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { useApp } from '../context/AppContext';
-import { COLORS } from '../data/musicData';
-import { getChords, chordNameToNote, chordNameToQuality, chordNameToVariant } from '../utils/musicUtils';
+import { COLORS, VAR_IV } from '../data/musicData';
+import { getChords, chordNameToNote, chordNameToQuality, chordNameToVariant, getGuitarShapes, flatChordName } from '../utils/musicUtils';
 import { exportMIDI } from '../utils/midiUtils';
+import GuitarDiagram from '../components/GuitarDiagram';
+import PianoDiagram  from '../components/PianoDiagram';
 
 const MEASURE_SIZE = 8; // 마디당 최대 코드 수
 
@@ -26,6 +28,8 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
   const [playing,     setPlaying]     = useState(false);
   const [playIdx,     setPlayIdx]     = useState(-1);
   const [showSaved,   setShowSaved]   = useState(false);
+  const [progInstr,   setProgInstr]   = useState('guitar'); // 'guitar' | 'piano'
+  const [shapeIdx,    setShapeIdx]    = useState(0);
 
   useEffect(() => {
     loadSaved();
@@ -99,6 +103,16 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
   const chords = getChords(activeKey, selMode);
   const c = i => chords[i]?.name || '';
 
+  // 재생 중인 코드 운지 정보
+  const playingChord = playing && playIdx >= 0 ? progression[playIdx] : null;
+  const guitarShapes = playingChord
+    ? getGuitarShapes(playingChord.name, playingChord.note, playingChord.quality, playingChord.variant)
+    : [];
+  const curShape = guitarShapes[shapeIdx] || guitarShapes[0] || null;
+  const pianoIntervals = playingChord
+    ? (VAR_IV[playingChord.variant] || VAR_IV[playingChord.quality === 'min' ? 'm' : playingChord.quality === 'dim' ? '°' : ''] || [0,4,7])
+    : null;
+
   // 2마디 슬롯 렌더
   function renderMeasure(measureIdx) {
     const start = measureIdx * MEASURE_SIZE;
@@ -116,7 +130,7 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
                 onPress={() => p && removeSlot(i)}>
                 <Text style={[styles.slotText, p && styles.slotTextFilled, playIdx === i && styles.slotTextPlaying]}
                   numberOfLines={1}>
-                  {p ? p.name : '·'}
+                  {p ? flatChordName(p.name, activeKey, selMode) : '·'}
                 </Text>
               </TouchableOpacity>
             );
@@ -140,7 +154,7 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
           ].map((s, i) => (
             <View key={i} style={styles.sugChip}>
               <Text style={styles.sugLabel}>{s.label}</Text>
-              <Text style={styles.sugChords}>{s.prog.join('→')}</Text>
+              <Text style={styles.sugChords}>{s.prog.map(n => flatChordName(n, activeKey, selMode)).join('→')}</Text>
             </View>
           ))}
         </View>
@@ -177,6 +191,64 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
         </TouchableOpacity>
       </View>
 
+      {/* 재생 중 운지 표시 */}
+      {playingChord && (
+        <View style={styles.fingeringBox}>
+          {/* 헤더: 코드명 + 기타/피아노 토글 */}
+          <View style={styles.fingeringHeader}>
+            <Text style={styles.fingeringChordName}>{flatChordName(playingChord.name, activeKey, selMode)}</Text>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {['guitar', 'piano'].map(instr => (
+                <TouchableOpacity
+                  key={instr}
+                  style={[styles.instrBtn, progInstr === instr && styles.instrBtnActive]}
+                  onPress={() => { setProgInstr(instr); setShapeIdx(0); }}>
+                  <Text style={[styles.instrBtnText, progInstr === instr && styles.instrBtnTextActive]}>
+                    {instr === 'guitar' ? '기타' : '피아노'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* 기타 운지 */}
+          {progInstr === 'guitar' && (
+            <View>
+              {/* 포지션 선택 버튼 */}
+              {guitarShapes.length > 1 && (
+                <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
+                  {guitarShapes.map((s, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={[styles.shapeBtn, shapeIdx === i && styles.shapeBtnActive]}
+                      onPress={() => setShapeIdx(i)}>
+                      <Text style={[styles.shapeBtnText, shapeIdx === i && styles.shapeBtnTextActive]}>
+                        {s.pos}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              <GuitarDiagram
+                shape={curShape}
+                name={playingChord.name}
+                displayName={flatChordName(playingChord.name, activeKey, selMode)}
+                posLabel={curShape?.pos}
+              />
+            </View>
+          )}
+
+          {/* 피아노 운지 */}
+          {progInstr === 'piano' && pianoIntervals && (
+            <PianoDiagram
+              rootNote={playingChord.note}
+              chordIntervals={pianoIntervals}
+              name={playingChord.name}
+            />
+          )}
+        </View>
+      )}
+
       {/* BPM */}
       <View style={styles.bpmRow}>
         <Text style={styles.bpmLabel}>BPM</Text>
@@ -202,7 +274,7 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
             <TouchableOpacity key={i} style={styles.savedItem} onPress={() => handleLoad(p)}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.savedMeta}>{p.key} {p.mode === 'major' ? '장조' : '단조'} · {p.date}</Text>
-                <Text style={styles.savedChords} numberOfLines={1}>{p.chords.join(' → ')}</Text>
+                <Text style={styles.savedChords} numberOfLines={1}>{p.chords.map(n => flatChordName(n, p.key, p.mode)).join(' → ')}</Text>
               </View>
               <TouchableOpacity style={styles.delBtn} onPress={() => confirmDelete(i)}>
                 <Text style={styles.delBtnText}>✕</Text>
@@ -251,6 +323,19 @@ const styles = StyleSheet.create({
   bpmRow:         { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   bpmLabel:       { fontSize: 11, color: COLORS.text2, minWidth: 32 },
   bpmVal:         { fontSize: 11, color: COLORS.text, minWidth: 28 },
+
+  // 재생 중 운지
+  fingeringBox:         { backgroundColor: COLORS.bg3, borderRadius: 8, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: COLORS.accent + '55' },
+  fingeringHeader:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  fingeringChordName:   { fontSize: 16, color: COLORS.accent, fontWeight: '700' },
+  instrBtn:             { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.card },
+  instrBtnActive:       { borderColor: COLORS.accent, backgroundColor: COLORS.accent + '22' },
+  instrBtnText:         { fontSize: 11, color: COLORS.text2 },
+  instrBtnTextActive:   { color: COLORS.accent, fontWeight: '700' },
+  shapeBtn:             { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 5, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.card },
+  shapeBtnActive:       { borderColor: COLORS.accent, backgroundColor: COLORS.accent },
+  shapeBtnText:         { fontSize: 9, color: COLORS.text2 },
+  shapeBtnTextActive:   { color: '#111', fontWeight: '700' },
 
   // 저장된 진행
   savedSection:   { backgroundColor: COLORS.bg3, borderRadius: 8, padding: 10, borderWidth: 1, borderColor: COLORS.border, marginTop: 4 },
