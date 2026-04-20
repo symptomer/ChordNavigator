@@ -9,8 +9,13 @@ const AUDIO_HTML = `<!DOCTYPE html>
 <meta name="apple-mobile-web-app-capable" content="yes">
 </head>
 <body>
+<!-- 무음 오디오 요소 — iOS 오디오 세션 활성화용 -->
+<audio id="sil" autoplay loop muted playsinline
+  src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQIAAAAA">
+</audio>
 <script>
 var ctx = null;
+var pending = [];  // 컨텍스트 준비 전 대기 중인 재생 함수들
 
 var NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 var VAR_IV = {
@@ -34,24 +39,49 @@ var VAR_IV = {
   '\u00f87': [0,3,6,10]
 };
 
-function unlock() {
-  try {
-    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
-    if (ctx.state !== 'running') {
-      // iOS unlock: play 1-sample silent buffer
-      var buf = ctx.createBuffer(1, 1, ctx.sampleRate);
-      var src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.connect(ctx.destination);
-      src.start(0);
-      ctx.resume();
-    }
-  } catch(e) {}
+function getCtx() {
+  if (!ctx) {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    ctx.onstatechange = function() {
+      if (ctx.state === 'running') flushPending();
+    };
+  }
+  return ctx;
 }
 
-// Try to unlock as soon as the page loads
-document.addEventListener('DOMContentLoaded', unlock);
-window.addEventListener('load', unlock);
+function flushPending() {
+  if (!ctx || ctx.state !== 'running') return;
+  var toRun = pending.splice(0);
+  toRun.forEach(function(fn) {
+    try { fn(); } catch(e) {}
+  });
+}
+
+function unlock() {
+  var c = getCtx();
+  // 오디오 요소로 iOS 오디오 세션 활성화 시도
+  var sil = document.getElementById('sil');
+  if (sil) {
+    sil.play().then(function() {
+      c.resume().then(flushPending).catch(function(){});
+    }).catch(function() {
+      c.resume().then(flushPending).catch(function(){});
+    });
+  } else {
+    c.resume().then(flushPending).catch(function(){});
+  }
+}
+
+function playWhenReady(fn) {
+  var c = getCtx();
+  if (c.state === 'running') {
+    try { fn(); } catch(e) {}
+  } else {
+    pending.push(fn);
+    // resume 시도 — iOS allowsInlineMediaPlayback+!mediaPlaybackRequiresUserAction 시 작동
+    c.resume().then(flushPending).catch(function(){});
+  }
+}
 
 function n2f(note, oct) {
   var s = {C:0,'C#':1,D:2,'D#':3,E:4,F:5,'F#':6,G:7,'G#':8,A:9,'A#':10,B:11};
@@ -59,34 +89,31 @@ function n2f(note, oct) {
 }
 
 function scheduleChord(note, variant, quality, vol) {
-  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
-  // Resume synchronously then schedule — works on modern iOS WKWebView
-  ctx.resume();
-  var now = ctx.currentTime;
   var vk = variant || (quality === 'min' ? 'm' : quality === 'dim' ? '\u00b0' : '');
   var ivs = VAR_IV[vk] || [0, 4, 7];
   var r = NOTES.indexOf(note);
   if (r < 0) return;
-  ivs.slice(0, 5).forEach(function(iv, i) {
-    var pc = iv % 12;
-    var rootPc = r % 12;
-    var diff = (pc - rootPc + 12) % 12;
-    var ni = (r + diff) % 12;
-    var oct = 4;
-    var f = n2f(NOTES[ni], oct);
-    var delay = i * 0.05;
-    var o = ctx.createOscillator();
-    var g = ctx.createGain();
-    o.type = 'triangle';
-    o.frequency.value = f;
-    var v = (vol || 0.5) * 0.2;
-    g.gain.setValueAtTime(0.001, now + delay);
-    g.gain.linearRampToValueAtTime(v, now + delay + 0.04);
-    g.gain.exponentialRampToValueAtTime(0.001, now + delay + 1.4);
-    o.connect(g);
-    g.connect(ctx.destination);
-    o.start(now + delay);
-    o.stop(now + delay + 1.5);
+
+  playWhenReady(function() {
+    var now = ctx.currentTime;
+    ivs.slice(0, 5).forEach(function(iv, i) {
+      var diff = (iv % 12 - r % 12 + 12) % 12;
+      var ni   = (r + diff) % 12;
+      var f    = n2f(NOTES[ni], 4);
+      var delay = i * 0.05;
+      var o = ctx.createOscillator();
+      var g = ctx.createGain();
+      o.type = 'triangle';
+      o.frequency.value = f;
+      var v = (vol || 0.5) * 0.2;
+      g.gain.setValueAtTime(0.001, now + delay);
+      g.gain.linearRampToValueAtTime(v, now + delay + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.001, now + delay + 1.4);
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start(now + delay);
+      o.stop(now + delay + 1.5);
+    });
   });
 }
 
@@ -103,6 +130,10 @@ function handleMsg(raw) {
 
 window.addEventListener('message', function(e) { handleMsg(e.data); });
 document.addEventListener('message', function(e) { handleMsg(e.data); });
+
+// 페이지 로드 후 즉시 unlock 시도
+window.addEventListener('load', unlock);
+document.addEventListener('DOMContentLoaded', unlock);
 <\/script>
 </body>
 </html>`;
@@ -115,6 +146,9 @@ const AudioEngine = forwardRef((props, ref) => {
       if (!wvRef.current) return;
       const msg = JSON.stringify({ type: 'playChord', note, variant: variant || '', quality, vol });
       wvRef.current.injectJavaScript(`handleMsg(${JSON.stringify(msg)});true;`);
+    },
+    unlock: () => {
+      wvRef.current?.injectJavaScript(`unlock();true;`);
     },
   }));
 
@@ -129,10 +163,9 @@ const AudioEngine = forwardRef((props, ref) => {
         mixedContentMode="always"
         originWhitelist={['*']}
         onLoad={() => {
-          // trigger unlock after WebView finishes loading
           wvRef.current?.injectJavaScript(`unlock();true;`);
         }}
-        onError={e => console.log('WebView error:', e.nativeEvent)}
+        onError={e => console.log('AudioEngine error:', e.nativeEvent)}
       />
     </View>
   );
