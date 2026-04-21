@@ -10,7 +10,25 @@ import { exportMIDI } from '../utils/midiUtils';
 import GuitarDiagram from '../components/GuitarDiagram';
 import PianoDiagram  from '../components/PianoDiagram';
 
-const MEASURE_SIZE = 8; // 마디당 최대 코드 수
+const MEASURE_SIZE = 4; // 4/4박자: 한 마디 = 4슬롯(비트)
+
+// 각 코드의 재생 길이(비트 수) 계산
+// 1코드 = 온음표(4비트), 2코드 = 2분음표(2비트), 3코드 = 2+1+1, 4+ = 균등 분배
+function getChordBeats(prog, breaks) {
+  const beats = new Array(prog.length).fill(1);
+  breaks.forEach((startIdx, mIdx) => {
+    const endIdx = mIdx + 1 < breaks.length ? breaks[mIdx + 1] : prog.length;
+    const count = endIdx - startIdx;
+    if (count <= 0) return;
+    for (let i = startIdx; i < endIdx; i++) {
+      if (count === 1)      beats[i] = 4;
+      else if (count === 2) beats[i] = 2;
+      else if (count === 3) beats[i] = (i === startIdx) ? 2 : 1;
+      else                  beats[i] = 4 / count;
+    }
+  });
+  return beats;
+}
 
 export default function ProgressionTab({ onSwitchToAnalyze }) {
   const {
@@ -21,26 +39,38 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
     bpm, setBpm, vol,
     saved, loadSaved, saveProg, deleteSaved,
     playChord,
+    curInstr, setCurInstr,
     measureBreaks, setMeasureBreaks,
     maxProg, setMaxProg,
   } = useApp();
 
-  const ivRef   = useRef(null);
-  const beatRef = useRef(0);
-  const [playing,     setPlaying]     = useState(false);
-  const [playIdx,     setPlayIdx]     = useState(-1);
-  const [showSaved,   setShowSaved]   = useState(false);
-  const [progInstr,   setProgInstr]   = useState('guitar'); // 'guitar' | 'piano'
-  const [shapeIdx,    setShapeIdx]    = useState(0);
+  const ivRef      = useRef(null);   // setTimeout ID
+  const playingRef = useRef(false);
+  const [playing,   setPlaying]   = useState(false);
+  const [playIdx,   setPlayIdx]   = useState(-1);
+  const [showSaved, setShowSaved] = useState(false);
+  const [shapeIdx,  setShapeIdx]  = useState(0);
 
   useEffect(() => {
     loadSaved();
-    return () => { if (ivRef.current) clearInterval(ivRef.current); };
+    return () => {
+      if (ivRef.current) clearTimeout(ivRef.current);
+    };
   }, []);
+
+  // progression이 현재 마디 용량을 초과하면 자동으로 새 마디 추가
+  useEffect(() => {
+    if (!progression.length) return;
+    const lastBreak = measureBreaks[measureBreaks.length - 1];
+    const lastEnd   = lastBreak + MEASURE_SIZE;
+    if (progression.length > lastEnd) {
+      setMeasureBreaks(prev => [...prev, lastEnd]);
+      setMaxProg(prev => Math.max(prev, lastEnd + MEASURE_SIZE));
+    }
+  }, [progression.length]);
 
   function removeSlot(i) {
     setProgression(prev => prev.filter((_, idx) => idx !== i));
-    // measureBreaks 인덱스 조정
     setMeasureBreaks(prev => {
       const adjusted = prev.map(b => b > i ? b - 1 : b);
       return adjusted.filter((b, idx) => idx === 0 || b > adjusted[idx - 1]);
@@ -53,28 +83,37 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
   }
 
   function stopPlay() {
-    if (ivRef.current) clearInterval(ivRef.current);
+    if (ivRef.current) clearTimeout(ivRef.current);
     ivRef.current = null;
+    playingRef.current = false;
     setPlaying(false);
     setPlayIdx(-1);
-    beatRef.current = 0;
   }
 
   function startPlay() {
     if (!progression.length) return;
     stopPlay();
-    const snap = [...progression];
-    beatRef.current = 0;
-    const ms = (60000 / bpm) * 2;
+
+    const snap   = [...progression];
+    const breaks = [...measureBreaks];
+    const beats  = getChordBeats(snap, breaks);
+    const beatMs = 60000 / bpm;
+
+    playingRef.current = true;
+    let idx = 0;
+
     function tick() {
-      const idx = beatRef.current % snap.length;
-      const p   = snap[idx];
+      if (!playingRef.current) return;
+      const pos = idx % snap.length;
+      const p   = snap[pos];
       playChord(p.note, p.variant, p.quality);
-      setPlayIdx(idx);
-      beatRef.current++;
+      setPlayIdx(pos);
+      const durMs = (beats[pos] || 1) * beatMs;
+      idx++;
+      ivRef.current = setTimeout(tick, durMs);
     }
+
     tick();
-    ivRef.current = setInterval(tick, ms);
     setPlaying(true);
   }
 
@@ -115,17 +154,17 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
   const chords = getChords(activeKey, selMode);
   const c = i => chords[i]?.name || '';
 
-  // 재생 중인 코드 운지 정보
-  const playingChord = playing && playIdx >= 0 ? progression[playIdx] : null;
-  const guitarShapes = playingChord
+  // 재생 중 코드의 운지 정보
+  const playingChord    = playing && playIdx >= 0 ? progression[playIdx] : null;
+  const guitarShapes    = playingChord
     ? getGuitarShapes(playingChord.name, playingChord.note, playingChord.quality, playingChord.variant)
     : [];
-  const curShape = guitarShapes[shapeIdx] || guitarShapes[0] || null;
-  const pianoIntervals = playingChord
+  const curShape        = guitarShapes[shapeIdx] || guitarShapes[0] || null;
+  const pianoIntervals  = playingChord
     ? (VAR_IV[playingChord.variant] || VAR_IV[playingChord.quality === 'min' ? 'm' : playingChord.quality === 'dim' ? '°' : ''] || [0,4,7])
     : null;
 
-  // 동적 마디 슬롯 렌더
+  // 마디 렌더 (MEASURE_SIZE=4 슬롯)
   function renderMeasure(measureIdx, startIdx) {
     const isLast = measureIdx === measureBreaks.length - 1;
     return (
@@ -147,7 +186,8 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
                 key={i}
                 style={[styles.slot, p && styles.slotFilled, playIdx === i && styles.slotPlaying]}
                 onPress={() => p && removeSlot(i)}>
-                <Text style={[styles.slotText, p && styles.slotTextFilled, playIdx === i && styles.slotTextPlaying]}
+                <Text
+                  style={[styles.slotText, p && styles.slotTextFilled, playIdx === i && styles.slotTextPlaying]}
                   numberOfLines={1}>
                   {p ? flatChordName(p.name, activeKey, selMode) : '·'}
                 </Text>
@@ -160,7 +200,7 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
   }
 
   return (
-    <ScrollView style={styles.wrap} contentContainerStyle={{ paddingBottom: 20 }}>
+    <ScrollView style={styles.wrap} contentContainerStyle={{ paddingBottom: 24 }}>
 
       {/* 추천 진행 */}
       <View style={styles.sugSection}>
@@ -212,16 +252,15 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
       {/* 재생 중 운지 표시 */}
       {playingChord && (
         <View style={styles.fingeringBox}>
-          {/* 헤더: 코드명 + 기타/피아노 토글 */}
           <View style={styles.fingeringHeader}>
             <Text style={styles.fingeringChordName}>{flatChordName(playingChord.name, activeKey, selMode)}</Text>
             <View style={{ flexDirection: 'row', gap: 6 }}>
               {['guitar', 'piano'].map(instr => (
                 <TouchableOpacity
                   key={instr}
-                  style={[styles.instrBtn, progInstr === instr && styles.instrBtnActive]}
-                  onPress={() => { setProgInstr(instr); setShapeIdx(0); }}>
-                  <Text style={[styles.instrBtnText, progInstr === instr && styles.instrBtnTextActive]}>
+                  style={[styles.instrBtn, curInstr === instr && styles.instrBtnActive]}
+                  onPress={() => { setCurInstr(instr); setShapeIdx(0); }}>
+                  <Text style={[styles.instrBtnText, curInstr === instr && styles.instrBtnTextActive]}>
                     {instr === 'guitar' ? '기타' : '피아노'}
                   </Text>
                 </TouchableOpacity>
@@ -229,10 +268,8 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
             </View>
           </View>
 
-          {/* 기타 운지 */}
-          {progInstr === 'guitar' && (
+          {curInstr === 'guitar' && (
             <View>
-              {/* 포지션 선택 버튼 */}
               {guitarShapes.length > 1 && (
                 <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
                   {guitarShapes.map((s, i) => (
@@ -256,8 +293,7 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
             </View>
           )}
 
-          {/* 피아노 운지 */}
-          {progInstr === 'piano' && pianoIntervals && (
+          {curInstr === 'piano' && pianoIntervals && (
             <PianoDiagram
               rootNote={playingChord.note}
               chordIntervals={pianoIntervals}
@@ -317,15 +353,15 @@ const styles = StyleSheet.create({
   sugLabel:       { fontSize: 9, color: COLORS.accent, fontWeight: '700', marginBottom: 2 },
   sugChords:      { fontSize: 10, color: COLORS.text2 },
 
-  // 마디
+  // 마디 (MEASURE_SIZE=4, 한 줄에 4슬롯)
   measure:           { marginBottom: 10 },
   measureSep:        { paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.border },
   measureHeaderRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   measureLabel:      { fontSize: 9, color: COLORS.text2, letterSpacing: 1 },
   addMeasureBtn:     { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 5, borderWidth: 1, borderColor: COLORS.accent, backgroundColor: COLORS.accent + '22' },
   addMeasureBtnText: { fontSize: 9, color: COLORS.accent, fontWeight: '700' },
-  measureSlots:      { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  slot:           { width: '23%', paddingVertical: 8, borderWidth: 1, borderStyle: 'dashed', borderColor: COLORS.border, borderRadius: 7, alignItems: 'center' },
+  measureSlots:      { flexDirection: 'row', gap: 4 },
+  slot:           { flex: 1, paddingVertical: 10, borderWidth: 1, borderStyle: 'dashed', borderColor: COLORS.border, borderRadius: 7, alignItems: 'center' },
   slotFilled:     { borderStyle: 'solid', borderColor: COLORS.accent },
   slotPlaying:    { backgroundColor: COLORS.accent, borderStyle: 'solid' },
   slotText:       { fontSize: 11, color: COLORS.text2 },

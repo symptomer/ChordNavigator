@@ -67,7 +67,7 @@ export function AppProvider({ children }) {
   }
 
   function playChord(note, variant, quality) {
-    audioRef.current?.playChord(note, variant, quality, vol);
+    audioRef.current?.playChord(note, variant, quality, vol, curInstr);
   }
 
   function resetNavigator() {
