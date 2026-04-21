@@ -1,28 +1,26 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Modal, ScrollView,
+  View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Modal,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { COLORS, NOTES } from '../data/musicData';
-import ChordsTab    from '../tabs/ChordsTab';
-import AnalyzeTab   from '../tabs/AnalyzeTab';
-import ScaleTab     from '../tabs/ScaleTab';
-import ProgressionTab from '../tabs/ProgressionTab';
+import ChordsTab  from '../tabs/ChordsTab';
+import AnalyzeTab from '../tabs/AnalyzeTab';
+import ScaleTab   from '../tabs/ScaleTab';
 
 const TABS = [
   { key: 'chords',  icon: '♪', label: '코드' },
-  { key: 'analyze', icon: '✦', label: '분석' },
-  { key: 'scale',   icon: '≋', label: '스케일' },
-  { key: 'prog',    icon: '▶', label: '진행' },
+  { key: 'analyze', icon: '✦', label: '분석·스케일' },
 ];
 
 export default function NavigatorScreen({ navigation }) {
   const {
-    selMode, activeKey, transKey,
+    selMode, activeKey, transKey, setTransKey,
   } = useApp();
 
-  const [curTab,       setCurTab]       = useState('chords');
-  const [transposeVis, setTransposeVis] = useState(false);
+  const [curTab,        setCurTab]        = useState('chords');
+  const [analyzeSubTab, setAnalyzeSubTab] = useState('analyze'); // 'analyze' | 'scale'
+  const [transposeVis,  setTransposeVis]  = useState(false);
 
   function goHome() { navigation.goBack(); }
 
@@ -33,11 +31,33 @@ export default function NavigatorScreen({ navigation }) {
 
   function renderTab() {
     switch (curTab) {
-      case 'chords':  return <ChordsTab onTranspose={() => setTransposeVis(true)} />;
-      case 'analyze': return <AnalyzeTab />;
-      case 'scale':   return <ScaleTab />;
-      case 'prog':    return <ProgressionTab onSwitchToAnalyze={() => setCurTab('analyze')} />;
-      default:        return null;
+      case 'chords':
+        return <ChordsTab onTranspose={() => setTransposeVis(true)} />;
+      case 'analyze':
+        return (
+          <View style={{ flex: 1 }}>
+            {/* 분석·스케일 서브탭 */}
+            <View style={styles.subTabBar}>
+              <TouchableOpacity
+                style={[styles.subTabBtn, analyzeSubTab === 'analyze' && styles.subTabBtnSel]}
+                onPress={() => setAnalyzeSubTab('analyze')}>
+                <Text style={[styles.subTabText, analyzeSubTab === 'analyze' && styles.subTabTextSel]}>
+                  ✦ 분석
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.subTabBtn, analyzeSubTab === 'scale' && styles.subTabBtnSel]}
+                onPress={() => setAnalyzeSubTab('scale')}>
+                <Text style={[styles.subTabText, analyzeSubTab === 'scale' && styles.subTabTextSel]}>
+                  ≋ 스케일
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {analyzeSubTab === 'analyze' ? <AnalyzeTab /> : <ScaleTab />}
+          </View>
+        );
+      default:
+        return null;
     }
   }
 
@@ -63,7 +83,6 @@ export default function NavigatorScreen({ navigation }) {
             key={t.key}
             style={styles.tabItem}
             onPress={() => setCurTab(t.key)}>
-            <Text style={[styles.tabIcon, curTab === t.key && styles.tabActive]}>{t.icon}</Text>
             <Text style={[styles.tabLabel, curTab === t.key && styles.tabActive]}>{t.label}</Text>
           </TouchableOpacity>
         ))}
@@ -101,11 +120,20 @@ const styles = StyleSheet.create({
   backBtnText:     { color: COLORS.text, fontSize: 11 },
   keyBadge:        { flex: 1, fontSize: 13, color: COLORS.accent, fontWeight: '700', letterSpacing: 1 },
   content:         { flex: 1, paddingHorizontal: 14, paddingTop: 10 },
+
+  // 서브탭 (분석·스케일 내부)
+  subTabBar:       { flexDirection: 'row', gap: 6, marginBottom: 10 },
+  subTabBtn:       { flex: 1, paddingVertical: 7, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, backgroundColor: COLORS.card, alignItems: 'center' },
+  subTabBtnSel:    { borderColor: COLORS.accent, backgroundColor: 'rgba(232,196,106,0.12)' },
+  subTabText:      { fontSize: 12, color: COLORS.text2, fontWeight: '600' },
+  subTabTextSel:   { color: COLORS.accent },
+
+  // 하단 탭바
   tabBar:          { flexDirection: 'row', backgroundColor: COLORS.bg2, borderTopWidth: 1, borderTopColor: COLORS.border, paddingBottom: 4 },
-  tabItem:         { flex: 1, alignItems: 'center', paddingVertical: 6 },
-  tabIcon:         { fontSize: 16, color: COLORS.text2 },
-  tabLabel:        { fontSize: 9, color: COLORS.text2, marginTop: 1 },
+  tabItem:         { flex: 1, alignItems: 'center', paddingVertical: 10 },
+  tabLabel:        { fontSize: 12, color: COLORS.text2, fontWeight: '600' },
   tabActive:       { color: COLORS.accent },
+
   // Transpose modal
   modalOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalBox:        { backgroundColor: COLORS.bg2, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20 },

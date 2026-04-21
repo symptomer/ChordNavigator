@@ -1,11 +1,13 @@
 import React, { useRef, useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, ActivityIndicator,
+  StyleSheet, ActivityIndicator, Alert,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { COLORS, LEVEL_DEFAULT, LEVEL_VARS, NOTES, GENRE_PROGS, VAR_IV } from '../data/musicData';
-import { getChords, getChordTones, getSubstitutes, ki, getGuitarShapes, getVariantKey, flatChordName } from '../utils/musicUtils';
+import { getChords, getChordTones, getSubstitutes, ki, getGuitarShapes, getVariantKey, flatChordName,
+         chordNameToNote, chordNameToQuality, chordNameToVariant } from '../utils/musicUtils';
+import { exportMIDI } from '../utils/midiUtils';
 import GuitarDiagram from '../components/GuitarDiagram';
 import PianoDiagram  from '../components/PianoDiagram';
 
@@ -253,20 +255,28 @@ function getTechniques(curChord, chords) {
 export default function ChordsTab({ onTranspose }) {
   const {
     activeKey, selMode, transKey, setTransKey,
+    selKey, setSelKey, setSelMode,
     curChord, setCurChord, curVar, setCurVar,
     progression, setProgression, playChord,
     curInstr, setCurInstr,
-    selLevel, selGenre, bpm,
-    maxProg,
+    selLevel, selGenre,
+    bpm, setBpm, vol,
+    saved, loadSaved, saveProg, deleteSaved,
+    maxProg, setMaxProg,
     measureBreaks, setMeasureBreaks,
     apiKey,
   } = useApp();
 
-  const histScrollRef = useRef(null); // 레거시 — 세로 표시 전환 후 미사용
-  const gpsTimerRef   = useRef(null);
-  const [gpsRoutes,  setGpsRoutes]  = useState([]);
-  const [gpsLoading, setGpsLoading] = useState(false);
-  const [diagPosIdx, setDiagPosIdx] = useState(0);
+  const gpsTimerRef    = useRef(null);
+  const ivRef          = useRef(null);
+  const playingRef     = useRef(false);
+  const [gpsRoutes,    setGpsRoutes]    = useState([]);
+  const [gpsLoading,   setGpsLoading]   = useState(false);
+  const [diagPosIdx,   setDiagPosIdx]   = useState(0);
+  const [playing,      setPlaying]      = useState(false);
+  const [playIdx,      setPlayIdx]      = useState(-1);
+  const [playShapeIdx, setPlayShapeIdx] = useState(0);
+  const [showSaved,    setShowSaved]    = useState(false);
 
   const chords = getChords(activeKey, selMode);
   const levelDef  = LEVEL_DEFAULT[selLevel]  || LEVEL_DEFAULT.mid;
@@ -338,6 +348,8 @@ export default function ChordsTab({ onTranspose }) {
 
   // 코드 변경 시 다이어그램 포지션 리셋
   useEffect(() => { setDiagPosIdx(0); }, [curChord?.name, curVar]);
+  // unmount 시 재생 정리
+  useEffect(() => () => { if (ivRef.current) clearTimeout(ivRef.current); }, []);
 
   // GPS 루트 실시간 업데이트
   useEffect(() => {
@@ -426,7 +438,102 @@ export default function ChordsTab({ onTranspose }) {
     }
   }
 
-  // 기법 시퀀스 순차 재생 (BPM 기준 1비트 간격)
+  // ── 마디 삭제 ─────────────────────────────────────────────────
+  function deleteMeasure(mIdx) {
+    const startIdx = measureBreaks[mIdx];
+    const endIdx   = mIdx + 1 < measureBreaks.length
+      ? measureBreaks[mIdx + 1]
+      : progression.length;
+    const count = endIdx - startIdx;
+    setProgression(prev => prev.filter((_, i) => i < startIdx || i >= endIdx));
+    setMeasureBreaks(prev => {
+      const next = prev
+        .filter((_, i) => i !== mIdx)
+        .map(b => b > startIdx ? b - count : b);
+      return next.length > 0 ? next : [0];
+    });
+    setMaxProg(prev => Math.max(16, prev - Math.max(count, 4)));
+  }
+
+  // ── 재생 (진행) ───────────────────────────────────────────────
+  function getChordBeats(prog, breaks) {
+    const beats = new Array(prog.length).fill(1);
+    breaks.forEach((si, mIdx) => {
+      const ei    = mIdx + 1 < breaks.length ? breaks[mIdx + 1] : prog.length;
+      const count = ei - si;
+      if (count <= 0) return;
+      for (let i = si; i < ei; i++) {
+        if (count === 1)      beats[i] = 4;
+        else if (count === 2) beats[i] = 2;
+        else if (count === 3) beats[i] = (i === si) ? 2 : 1;
+        else                  beats[i] = 4 / count;
+      }
+    });
+    return beats;
+  }
+
+  function stopPlay() {
+    if (ivRef.current) clearTimeout(ivRef.current);
+    ivRef.current = null;
+    playingRef.current = false;
+    setPlaying(false);
+    setPlayIdx(-1);
+  }
+
+  function startPlay() {
+    if (!progression.length) return;
+    stopPlay();
+    const snap   = [...progression];
+    const breaks = [...measureBreaks];
+    const beats  = getChordBeats(snap, breaks);
+    const beatMs = 60000 / bpm;
+    playingRef.current = true;
+    let idx = 0;
+    function tick() {
+      if (!playingRef.current) return;
+      const pos = idx % snap.length;
+      const p   = snap[pos];
+      playChord(p.note, p.variant, p.quality);
+      setPlayIdx(pos);
+      idx++;
+      ivRef.current = setTimeout(tick, (beats[pos] || 1) * beatMs);
+    }
+    tick();
+    setPlaying(true);
+  }
+
+  // ── 저장/불러오기 ──────────────────────────────────────────────
+  async function handleSave() {
+    const ok = await saveProg();
+    if (ok) { loadSaved(); setShowSaved(true); }
+    else Alert.alert('진행이 없습니다');
+  }
+
+  function handleLoad(p) {
+    setSelKey(p.key);
+    setSelMode(p.mode);
+    setTransKey(null);
+    setProgression(p.chords.map(n => {
+      const note    = chordNameToNote(n);
+      const quality = chordNameToQuality(n);
+      const variant = chordNameToVariant(n, note);
+      return { name: n, note, quality, variant };
+    }));
+    setCurChord(null);
+    setCurVar('');
+    setMeasureBreaks([0]);
+    setMaxProg(16);
+    setShowSaved(false);
+  }
+
+  function confirmDeleteSaved(i) {
+    Alert.alert('삭제', '이 진행을 삭제할까요?', [
+      { text: '취소', style: 'cancel' },
+      { text: '삭제', style: 'destructive', onPress: () => deleteSaved(i) },
+    ]);
+  }
+
+  // ── 기법 시퀀스 순차 재생 (BPM 기준 1비트 간격)
   function playTechSequence(items) {
     const beatMs = 60000 / bpm;
     items.forEach((item, i) => {
@@ -451,58 +558,186 @@ export default function ChordsTab({ onTranspose }) {
   return (
     <ScrollView style={styles.wrap} contentContainerStyle={{ paddingBottom: 24 }}>
 
-      {/* ── 히스토리 (마디 단위) ── */}
-      {progression.length > 0 && (
-        <View style={styles.histSection}>
-          <View style={styles.histHeader}>
-            <Text style={styles.miniLabel}>내 진행 ({progression.length}/16)</Text>
-            <TouchableOpacity onPress={clearHistory}>
-              <Text style={styles.clearText}>초기화</Text>
+      {/* ── 내 진행 ── */}
+      <View style={styles.histSection}>
+        {/* 헤더: 제목 + 재생/저장/불러오기/초기화 */}
+        <View style={styles.histHeader}>
+          <Text style={styles.miniLabel}>내 진행 ({progression.length}/{maxProg})</Text>
+          <View style={styles.histControls}>
+            {progression.length > 0 && (
+              <TouchableOpacity
+                style={[styles.ctrlBtn, playing && styles.ctrlBtnStop]}
+                onPress={playing ? stopPlay : startPlay}>
+                <Text style={[styles.ctrlBtnTxt, playing && styles.ctrlBtnStopTxt]}>
+                  {playing ? '■' : '▶'}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {/* BPM ± */}
+            {progression.length > 0 && (
+              <View style={styles.bpmInline}>
+                <TouchableOpacity onPress={() => setBpm(b => Math.max(40, b - 5))} style={styles.bpmAdjBtn}>
+                  <Text style={styles.bpmAdjTxt}>−</Text>
+                </TouchableOpacity>
+                <Text style={styles.bpmInlineTxt}>{bpm}</Text>
+                <TouchableOpacity onPress={() => setBpm(b => Math.min(200, b + 5))} style={styles.bpmAdjBtn}>
+                  <Text style={styles.bpmAdjTxt}>+</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            <TouchableOpacity style={styles.ctrlBtn} onPress={handleSave}>
+              <Text style={styles.ctrlBtnTxt}>☆</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.ctrlBtn, showSaved && styles.ctrlBtnActive]}
+              onPress={() => { loadSaved(); setShowSaved(v => !v); }}>
+              <Text style={[styles.ctrlBtnTxt, showSaved && styles.ctrlBtnActiveTxt]}>↑</Text>
+            </TouchableOpacity>
+            {progression.length > 0 && (
+              <TouchableOpacity style={styles.ctrlBtn} onPress={clearHistory}>
+                <Text style={styles.ctrlBtnTxt}>✕</Text>
+              </TouchableOpacity>
+            )}
           </View>
+        </View>
+
+        {/* 저장된 진행 목록 */}
+        {showSaved && (
+          <View style={styles.savedList}>
+            {!saved.length
+              ? <Text style={styles.savedEmpty}>저장된 진행 없음</Text>
+              : saved.map((p, i) => (
+                  <TouchableOpacity key={i} style={styles.savedItem} onPress={() => handleLoad(p)}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.savedMeta}>{p.key} {p.mode === 'major' ? '장' : '단'}조 · {p.date}</Text>
+                      <Text style={styles.savedChords} numberOfLines={1}>
+                        {p.chords.map(n => flatChordName(n, p.key, p.mode)).join(' → ')}
+                      </Text>
+                    </View>
+                    <TouchableOpacity onPress={() => confirmDeleteSaved(i)} hitSlop={{top:6,bottom:6,left:6,right:6}}>
+                      <Text style={styles.savedDel}>✕</Text>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))
+            }
+          </View>
+        )}
+
+        {/* 마디들 */}
+        {progression.length > 0 ? (
           <View style={styles.measuresRow}>
             {measureBreaks.map((startIdx, mIdx) => {
               const endIdx = mIdx + 1 < measureBreaks.length
                 ? measureBreaks[mIdx + 1]
                 : progression.length;
-              const slice = progression.slice(startIdx, endIdx);
+              const slice  = progression.slice(startIdx, endIdx);
               const isLast = mIdx === measureBreaks.length - 1;
               return (
                 <View key={mIdx} style={[styles.measureBlock, mIdx > 0 && styles.measureBlockSep]}>
                   <View style={styles.measureHeaderRow}>
                     <Text style={styles.measureLabel}>마디 {mIdx + 1}</Text>
-                    {isLast && (
-                      <TouchableOpacity onPress={addMeasure} style={styles.addMeasureBtn}>
-                        <Text style={styles.addMeasureBtnText}>+</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                  <View style={styles.measureChips}>
-                    {slice.map((p, si) => {
-                      const i = startIdx + si;
-                      const isActive = curChord?.note === p.note;
-                      const isLatest = i === progression.length - 1;
-                      return (
-                        <TouchableOpacity
-                          key={i}
-                          style={[styles.histChip, isLatest && styles.histChipLast, isActive && styles.histChipActive]}
-                          onPress={() => navigateToHistChord(p)}>
-                          <Text style={[styles.histName, isLatest && styles.histNameLast, isActive && styles.histNameActive]}>
-                            {flatChordName(p.name, activeKey, selMode)}
-                          </Text>
-                          <TouchableOpacity onPress={() => removeFromHistory(i)} hitSlop={{top:6,bottom:6,left:4,right:4}}>
-                            <Text style={styles.histX}>✕</Text>
-                          </TouchableOpacity>
+                    <View style={{ flexDirection:'row', gap:4 }}>
+                      {isLast && (
+                        <TouchableOpacity onPress={addMeasure} style={styles.addMeasureBtn}>
+                          <Text style={styles.addMeasureBtnText}>+</Text>
                         </TouchableOpacity>
-                      );
-                    })}
+                      )}
+                      {/* 빈 마디이거나 2번째 이상 마디는 삭제 가능 */}
+                      {(mIdx > 0 || slice.length === 0) && (
+                        <TouchableOpacity onPress={() => deleteMeasure(mIdx)} style={styles.delMeasureBtn}>
+                          <Text style={styles.delMeasureBtnText}>✕</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
+                  {slice.length === 0
+                    ? <Text style={styles.emptyMeasureTxt}>빈 마디</Text>
+                    : (
+                      <View style={styles.measureChips}>
+                        {slice.map((p, si) => {
+                          const i       = startIdx + si;
+                          const isActive  = curChord?.note === p.note;
+                          const isLatest  = i === progression.length - 1;
+                          const isPlaying = playIdx === i;
+                          return (
+                            <TouchableOpacity
+                              key={i}
+                              style={[
+                                styles.histChip,
+                                isLatest  && styles.histChipLast,
+                                isActive  && styles.histChipActive,
+                                isPlaying && styles.histChipPlaying,
+                              ]}
+                              onPress={() => navigateToHistChord(p)}>
+                              <Text style={[
+                                styles.histName,
+                                isLatest  && styles.histNameLast,
+                                isActive  && styles.histNameActive,
+                                isPlaying && styles.histNamePlaying,
+                              ]}>
+                                {flatChordName(p.name, activeKey, selMode)}
+                              </Text>
+                              <TouchableOpacity onPress={() => removeFromHistory(i)} hitSlop={{top:6,bottom:6,left:4,right:4}}>
+                                <Text style={styles.histX}>✕</Text>
+                              </TouchableOpacity>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )
+                  }
                 </View>
               );
             })}
           </View>
-        </View>
-      )}
+        ) : (
+          <Text style={styles.histEmptyTxt}>코드를 선택하면 진행이 쌓입니다</Text>
+        )}
+
+        {/* 재생 중 운지 */}
+        {playing && playIdx >= 0 && progression[playIdx] && (() => {
+          const pc     = progression[playIdx];
+          const shapes = getGuitarShapes(pc.name, pc.note, pc.quality, pc.variant);
+          const shape  = shapes[playShapeIdx] || shapes[0] || null;
+          const vk     = getVariantKey(pc.variant, pc.quality);
+          const pianoIvs = VAR_IV[vk] || (pc.quality === 'min' ? [0,3,7] : [0,4,7]);
+          return (
+            <View style={styles.playingFingering}>
+              <View style={styles.fingeringHdr}>
+                <Text style={styles.fingeringName}>{flatChordName(pc.name, activeKey, selMode)}</Text>
+                <View style={{ flexDirection:'row', gap:5 }}>
+                  {['guitar','piano'].map(instr => (
+                    <TouchableOpacity key={instr}
+                      style={[styles.instrBtn, curInstr === instr && styles.instrBtnSel]}
+                      onPress={() => { setCurInstr(instr); setPlayShapeIdx(0); }}>
+                      <Text style={[styles.instrBtnText, curInstr === instr && styles.instrBtnTextSel]}>
+                        {instr === 'guitar' ? '기타' : '피아노'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              {curInstr === 'guitar' && shapes.length > 1 && (
+                <View style={styles.posRow}>
+                  {shapes.map((s, i) => (
+                    <TouchableOpacity key={i}
+                      style={[styles.posBtn, playShapeIdx === i && styles.posBtnSel]}
+                      onPress={() => setPlayShapeIdx(i)}>
+                      <Text style={[styles.posBtnText, playShapeIdx === i && styles.posBtnTextSel]}>{s.pos}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              <View style={styles.diagWrap}>
+                {curInstr === 'guitar'
+                  ? <GuitarDiagram shape={shape} name={pc.name} displayName={flatChordName(pc.name, activeKey, selMode)} posLabel={shape?.pos} />
+                  : <PianoDiagram rootNote={pc.note} chordIntervals={pianoIvs} name={pc.name} />
+                }
+              </View>
+            </View>
+          );
+        })()}
+      </View>
 
       {/* ── 추천 진행 ── */}
       <View style={styles.sugSection}>
@@ -827,26 +1062,53 @@ export default function ChordsTab({ onTranspose }) {
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: COLORS.bg },
 
-  // 히스토리
+  // 내 진행
   histSection:    { backgroundColor: COLORS.bg3, borderRadius: 10, padding: 10, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border },
   histHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   miniLabel:      { fontSize: 10, color: COLORS.text2, letterSpacing: 1.5 },
-  clearText:      { fontSize: 10, color: COLORS.text2 },
+  histControls:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  ctrlBtn:        { paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, backgroundColor: COLORS.card },
+  ctrlBtnStop:    { borderColor: COLORS.red, backgroundColor: 'rgba(255,80,80,0.1)' },
+  ctrlBtnTxt:     { fontSize: 11, color: COLORS.text },
+  ctrlBtnStopTxt: { color: COLORS.red },
+  ctrlBtnActive:  { borderColor: COLORS.blue, backgroundColor: 'rgba(74,158,255,0.1)' },
+  ctrlBtnActiveTxt:{ color: COLORS.blue },
+  bpmInline:      { flexDirection: 'row', alignItems: 'center', gap: 3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, backgroundColor: COLORS.card, paddingHorizontal: 4, paddingVertical: 2 },
+  bpmInlineTxt:   { fontSize: 10, color: COLORS.text, minWidth: 22, textAlign: 'center' },
+  bpmAdjBtn:      { paddingHorizontal: 4 },
+  bpmAdjTxt:      { fontSize: 13, color: COLORS.accent, fontWeight: '700' },
+  histEmptyTxt:   { fontSize: 11, color: COLORS.text2, textAlign: 'center', paddingVertical: 8 },
   measuresRow:        { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start' },
   measureBlock:       { marginBottom: 4 },
   measureBlockSep:    { borderLeftWidth: 1, borderLeftColor: COLORS.border, marginLeft: 8, paddingLeft: 8 },
-  measureHeaderRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  measureHeaderRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   measureLabel:       { fontSize: 9, color: COLORS.text2, letterSpacing: 1 },
   addMeasureBtn:      { paddingHorizontal: 6, paddingVertical: 1, borderWidth: 1, borderColor: COLORS.accent, borderRadius: 4 },
   addMeasureBtnText:  { fontSize: 9, color: COLORS.accent },
+  delMeasureBtn:      { paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: COLORS.red, borderRadius: 4 },
+  delMeasureBtnText:  { fontSize: 9, color: COLORS.red },
+  emptyMeasureTxt:    { fontSize: 9, color: COLORS.text2, fontStyle: 'italic', paddingVertical: 2 },
   measureChips:       { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   histChip:       { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 4, borderRadius: 7, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.card },
   histChipLast:   { borderColor: COLORS.accent },
   histChipActive: { borderColor: COLORS.blue, backgroundColor: 'rgba(74,158,255,0.1)' },
+  histChipPlaying:{ borderColor: COLORS.accent, backgroundColor: COLORS.accent },
   histName:       { fontSize: 12, color: COLORS.text, fontWeight: '600' },
   histNameLast:   { color: COLORS.accent },
   histNameActive: { color: COLORS.blue },
+  histNamePlaying:{ color: '#111' },
   histX:          { fontSize: 10, color: COLORS.text2 },
+  // 저장된 진행
+  savedList:      { backgroundColor: COLORS.card, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, marginBottom: 8, padding: 6 },
+  savedEmpty:     { fontSize: 11, color: COLORS.text2, textAlign: 'center', paddingVertical: 6 },
+  savedItem:      { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  savedMeta:      { fontSize: 9, color: COLORS.text2, marginBottom: 2 },
+  savedChords:    { fontSize: 11, color: COLORS.text },
+  savedDel:       { fontSize: 12, color: COLORS.text2, paddingHorizontal: 6 },
+  // 재생 중 운지
+  playingFingering:{ marginTop: 10, borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 10 },
+  fingeringHdr:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  fingeringName:  { fontSize: 15, color: COLORS.accent, fontWeight: '700' },
 
   // 헤더
   row:           { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 6 },
