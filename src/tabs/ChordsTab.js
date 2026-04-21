@@ -256,7 +256,7 @@ export default function ChordsTab({ onTranspose }) {
     curChord, setCurChord, curVar, setCurVar,
     progression, setProgression, playChord,
     curInstr, setCurInstr,
-    selLevel, selGenre,
+    selLevel, selGenre, bpm,
     maxProg,
     measureBreaks, setMeasureBreaks,
     apiKey,
@@ -424,6 +424,16 @@ export default function ChordsTab({ onTranspose }) {
       setCurVar('');
       playChord(last.note, '', last.quality);
     }
+  }
+
+  // 기법 시퀀스 순차 재생 (BPM 기준 1비트 간격)
+  function playTechSequence(items) {
+    const beatMs = 60000 / bpm;
+    items.forEach((item, i) => {
+      setTimeout(() => {
+        if (item?.note) playChord(item.note, '', item.quality);
+      }, i * beatMs);
+    });
   }
 
   const subs     = curChord ? getSubstitutes(curChord.name, chords) : [];
@@ -692,11 +702,18 @@ export default function ChordsTab({ onTranspose }) {
                   <Text style={styles.techType}>{g.type}</Text>
                   {g.desc ? <Text style={styles.techDesc}>{g.desc}</Text> : null}
                   {g.useAll && g.items.length >= 1 && (
-                    <TouchableOpacity
-                      style={styles.techUseBtn}
-                      onPress={() => replaceWithTech(g.items)}>
-                      <Text style={styles.techUseBtnText}>→ 사용</Text>
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 5 }}>
+                      <TouchableOpacity
+                        style={styles.techPlayBtn}
+                        onPress={() => playTechSequence(g.items)}>
+                        <Text style={styles.techPlayBtnText}>▶</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.techUseBtn}
+                        onPress={() => replaceWithTech(g.items)}>
+                        <Text style={styles.techUseBtnText}>→ 사용</Text>
+                      </TouchableOpacity>
+                    </View>
                   )}
                 </View>
                 {g.items.length > 0 && (
@@ -927,6 +944,8 @@ const styles = StyleSheet.create({
   techChip:      { paddingHorizontal: 9, paddingVertical: 5, borderWidth: 1, borderColor: COLORS.pink, borderRadius: 7, backgroundColor: 'rgba(244,114,182,0.08)', alignItems: 'center' },
   techChipText:  { fontSize: 12, color: COLORS.text, fontWeight: '600' },
   techChipHint:  { fontSize: 9, color: COLORS.pink, marginTop: 1 },
+  techPlayBtn:    { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 5, borderWidth: 1, borderColor: COLORS.green, backgroundColor: 'rgba(76,175,80,0.12)' },
+  techPlayBtnText:{ fontSize: 10, color: COLORS.green, fontWeight: '700' },
   techUseBtn:    { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5, borderWidth: 1, borderColor: COLORS.pink, backgroundColor: 'rgba(244,114,182,0.12)' },
   techUseBtnText:{ fontSize: 10, color: COLORS.pink, fontWeight: '700' },
   // 추천 진행

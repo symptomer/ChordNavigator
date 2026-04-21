@@ -164,9 +164,17 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
     ? (VAR_IV[playingChord.variant] || VAR_IV[playingChord.quality === 'min' ? 'm' : playingChord.quality === 'dim' ? '°' : ''] || [0,4,7])
     : null;
 
-  // 마디 렌더 (MEASURE_SIZE=4 슬롯)
+  // 마디 렌더
+  // - 마지막 마디: MEASURE_SIZE(4) 슬롯 고정 표시 (빈 슬롯 포함)
+  // - 중간 마디: 실제 해당 마디에 속한 코드 수만큼만 표시 (measureBreaks 기준)
   function renderMeasure(measureIdx, startIdx) {
-    const isLast = measureIdx === measureBreaks.length - 1;
+    const isLast   = measureIdx === measureBreaks.length - 1;
+    const nextBreak = isLast ? null : measureBreaks[measureIdx + 1];
+    // 이 마디의 실제 코드 수
+    const chordCount = isLast ? (progression.length - startIdx) : (nextBreak - startIdx);
+    // 표시할 슬롯 수: 마지막 마디는 MEASURE_SIZE 고정, 중간 마디는 실제 코드 수
+    const slotsCount = isLast ? MEASURE_SIZE : Math.max(chordCount, 1);
+
     return (
       <View key={measureIdx} style={[styles.measure, measureIdx > 0 && styles.measureSep]}>
         <View style={styles.measureHeaderRow}>
@@ -178,7 +186,7 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
           )}
         </View>
         <View style={styles.measureSlots}>
-          {Array.from({ length: MEASURE_SIZE }).map((_, si) => {
+          {Array.from({ length: slotsCount }).map((_, si) => {
             const i = startIdx + si;
             const p = progression[i];
             return (
