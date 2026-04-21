@@ -571,6 +571,9 @@ export default function ChordsTab({ onTranspose }) {
                 <Text style={[styles.ctrlBtnTxt, playing && styles.ctrlBtnStopTxt]}>
                   {playing ? '■' : '▶'}
                 </Text>
+                <Text style={[styles.ctrlBtnLabel, playing && styles.ctrlBtnStopTxt]}>
+                  {playing ? '정지' : '재생'}
+                </Text>
               </TouchableOpacity>
             )}
             {/* BPM ± */}
@@ -579,7 +582,10 @@ export default function ChordsTab({ onTranspose }) {
                 <TouchableOpacity onPress={() => setBpm(b => Math.max(40, b - 5))} style={styles.bpmAdjBtn}>
                   <Text style={styles.bpmAdjTxt}>−</Text>
                 </TouchableOpacity>
-                <Text style={styles.bpmInlineTxt}>{bpm}</Text>
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={styles.bpmInlineTxt}>{bpm}</Text>
+                  <Text style={styles.bpmInlineLabel}>템포</Text>
+                </View>
                 <TouchableOpacity onPress={() => setBpm(b => Math.min(200, b + 5))} style={styles.bpmAdjBtn}>
                   <Text style={styles.bpmAdjTxt}>+</Text>
                 </TouchableOpacity>
@@ -587,15 +593,18 @@ export default function ChordsTab({ onTranspose }) {
             )}
             <TouchableOpacity style={styles.ctrlBtn} onPress={handleSave}>
               <Text style={styles.ctrlBtnTxt}>☆</Text>
+              <Text style={styles.ctrlBtnLabel}>저장</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.ctrlBtn, showSaved && styles.ctrlBtnActive]}
               onPress={() => { loadSaved(); setShowSaved(v => !v); }}>
               <Text style={[styles.ctrlBtnTxt, showSaved && styles.ctrlBtnActiveTxt]}>↑</Text>
+              <Text style={[styles.ctrlBtnLabel, showSaved && styles.ctrlBtnActiveTxt]}>불러오기</Text>
             </TouchableOpacity>
             {progression.length > 0 && (
               <TouchableOpacity style={styles.ctrlBtn} onPress={clearHistory}>
                 <Text style={styles.ctrlBtnTxt}>✕</Text>
+                <Text style={styles.ctrlBtnLabel}>초기화</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -637,15 +646,16 @@ export default function ChordsTab({ onTranspose }) {
                   <View style={styles.measureHeaderRow}>
                     <Text style={styles.measureLabel}>마디 {mIdx + 1}</Text>
                     <View style={{ flexDirection:'row', gap:4 }}>
-                      {isLast && (
-                        <TouchableOpacity onPress={addMeasure} style={styles.addMeasureBtn}>
-                          <Text style={styles.addMeasureBtnText}>+</Text>
-                        </TouchableOpacity>
-                      )}
-                      {/* 빈 마디이거나 2번째 이상 마디는 삭제 가능 */}
+                      {/* 빈 마디이거나 2번째 이상 마디는 삭제 가능 — 왼쪽 */}
                       {(mIdx > 0 || slice.length === 0) && (
                         <TouchableOpacity onPress={() => deleteMeasure(mIdx)} style={styles.delMeasureBtn}>
                           <Text style={styles.delMeasureBtnText}>✕</Text>
+                        </TouchableOpacity>
+                      )}
+                      {/* 마디 추가 — 오른쪽 */}
+                      {isLast && (
+                        <TouchableOpacity onPress={addMeasure} style={styles.addMeasureBtn}>
+                          <Text style={styles.addMeasureBtnText}>+</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -1067,14 +1077,16 @@ const styles = StyleSheet.create({
   histHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   miniLabel:      { fontSize: 10, color: COLORS.text2, letterSpacing: 1.5 },
   histControls:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  ctrlBtn:        { paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, backgroundColor: COLORS.card },
+  ctrlBtn:        { paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, backgroundColor: COLORS.card, alignItems: 'center' },
   ctrlBtnStop:    { borderColor: COLORS.red, backgroundColor: 'rgba(255,80,80,0.1)' },
   ctrlBtnTxt:     { fontSize: 11, color: COLORS.text },
+  ctrlBtnLabel:   { fontSize: 8, color: COLORS.text2, marginTop: 2 },
   ctrlBtnStopTxt: { color: COLORS.red },
   ctrlBtnActive:  { borderColor: COLORS.blue, backgroundColor: 'rgba(74,158,255,0.1)' },
   ctrlBtnActiveTxt:{ color: COLORS.blue },
   bpmInline:      { flexDirection: 'row', alignItems: 'center', gap: 3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, backgroundColor: COLORS.card, paddingHorizontal: 4, paddingVertical: 2 },
   bpmInlineTxt:   { fontSize: 10, color: COLORS.text, minWidth: 22, textAlign: 'center' },
+  bpmInlineLabel: { fontSize: 8, color: COLORS.text2, textAlign: 'center' },
   bpmAdjBtn:      { paddingHorizontal: 4 },
   bpmAdjTxt:      { fontSize: 13, color: COLORS.accent, fontWeight: '700' },
   histEmptyTxt:   { fontSize: 11, color: COLORS.text2, textAlign: 'center', paddingVertical: 8 },
