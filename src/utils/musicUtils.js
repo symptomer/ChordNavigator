@@ -19,6 +19,16 @@ export function flatChordName(name, key, mode) {
   return name;
 }
 
+// 슬래시 코드 포함 전체 코드명 표시: 'Am/D#' → flat 키에서 'Am/Eb'
+export function displayChordName(name, key, mode) {
+  if (!name) return name;
+  const si = name.indexOf('/');
+  if (si < 0) return flatChordName(name, key, mode);
+  const bass = name.slice(si + 1);
+  const fb = usesFlatDisplay(key, mode) ? (TO_FLAT[bass] || bass) : bass;
+  return flatChordName(name.slice(0, si), key, mode) + '/' + fb;
+}
+
 export function ki(k) {
   return NOTES.indexOf(k);
 }
@@ -60,7 +70,8 @@ export function getVariantKey(variant, quality) {
 }
 
 export function chordNameToNote(name) {
-  return name.replace(/m7?|maj7|°|add9|sus[24]|[679]|ø7/g, '');
+  const m = name.match(/^[A-G][b#]?/);
+  return m ? m[0] : name;
 }
 
 export function chordNameToQuality(name) {
@@ -118,55 +129,137 @@ function normalizeVariantForShape(variant, quality) {
   return variant;
 }
 
-// 기타 운지 전체 조회: curated 데이터 우선, 부족하면 CAGED로 최대 3개까지 보완
+// 포지션의 최저 실제 프렛 반환 (뮤트=-1 제외, 오픈=0)
+function minActiveFret(pos) {
+  const active = pos.frets.filter(f => f >= 0);
+  return active.length ? Math.min(...active) : 99;
+}
+
+// 두 포지션의 프렛 배열이 동일한지 비교
+function sameShape(a, b) {
+  return a.frets.length === b.frets.length && a.frets.every((f, i) => f === b.frets[i]);
+}
+
+// 슬래시 코드 기타 운지: 베이스음을 루트로 E/A/D현에 배치, 유효한 모든 포지션 반환
+// 예: Am/D# → D#를 루트로 D현(fret1), A현(fret6), E현(fret11) 순으로 탐색
+const FLAT_TO_SHARP_MAP = { Bb:'A#', Eb:'D#', Ab:'G#', Db:'C#', Gb:'F#', Cb:'B', Fb:'E' };
+
+function getSlashGuitarShapes(chordNote, quality, variant, bassNote) {
+  const chordIdx  = NOTES.indexOf(chordNote);
+  const bassSharp = FLAT_TO_SHARP_MAP[bassNote] || bassNote;
+  const bassIdx   = NOTES.indexOf(bassSharp);
+  if (chordIdx < 0 || bassIdx < 0) return [];
+
+  const vk = variant || (quality === 'min' ? 'm' : quality === 'dim' ? '°' : '');
+  const ivs = VAR_IV[vk] || [0, 4, 7];
+  const pcs = [...new Set(ivs.map(iv => (chordIdx + iv) % 12))];
+
+  const openPCs  = [4, 9, 2, 7, 11, 4];
+  const strNames = ['E현', 'A현', 'D현'];
+  const results  = [];
+
+  // D현(2) → A현(1) → E현(0) 순 (낮은 프렛 우선)
+  for (const bassStr of [2, 1, 0]) {
+    const bassFret = ((bassIdx - openPCs[bassStr]) % 12 + 12) % 12;
+    const frets = new Array(6).fill(-1);
+    // 베이스현보다 낮은 현은 뮤트
+    frets[bassStr] = bassFret;
+
+    // 오픈 포지션(bassFret < 5): 개방현/저프렛 허용 (바레코드 아님)
+    // 고위치(bassFret >= 5): 바레 불가능 방지 — 베이스 프렛 이상만 허용
+    const minAllowed = bassFret >= 5 ? bassFret : 0;
+    for (let s = bassStr + 1; s <= 5; s++) {
+      const open = openPCs[s];
+      let best = -1, bestDist = Infinity;
+      for (const pc of pcs) {
+        let f = ((pc - open) % 12 + 12) % 12;
+        while (f < minAllowed) f += 12;
+        const dist = Math.abs(f - bassFret);
+        if (dist < bestDist && f <= bassFret + 4) { bestDist = dist; best = f; }
+      }
+      frets[s] = best;
+    }
+
+    const active = frets.filter(f => f >= 0);
+    if (active.length < 3) continue;
+    if (Math.max(...active) - Math.min(...active) > 4) continue;
+
+    const minF    = Math.min(...active);
+    const fingers = frets.map(f => f < 0 ? 0 : Math.min(4, Math.max(1, f - minF + 1)));
+    results.push({ frets, fingers, pos: `${bassNote}베이스 (${strNames[bassStr]})` });
+  }
+
+  return results;
+}
+
+// 기타 운지 전체 조회: curated 우선, 2개 미만이면 CAGED로 보완, 마지막에 낮은 프렛 순 정렬
 export function getGuitarShapes(name, note, quality, variant) {
-  // 1) curated 데이터 조회 (name 또는 variantKey)
+  // 0) 슬래시 코드 처리 — 베이스음을 루트로 한 운지만 사용
+  if (name && name.includes('/')) {
+    const [chordPart, bassNote] = name.split('/');
+    const chordNote = (chordPart.match(/^[A-G][b#]?/) || [])[0] || note;
+    const suffix    = chordPart.slice(chordNote.length);
+    const chordVar  = VAR_IV[suffix] !== undefined ? suffix : (variant || '');
+    const slashShapes = getSlashGuitarShapes(chordNote, quality, chordVar, bassNote);
+    if (slashShapes.length > 0) {
+      return slashShapes.sort((a, b) => minActiveFret(a) - minActiveFret(b));
+    }
+    // 슬래시 운지 없으면 상위 코드 운지로 폴백
+    return getGuitarShapes(chordPart || chordNote, chordNote, quality, chordVar);
+  }
+  // 1) curated 데이터 조회
   let curated = null;
   if (name && CHORD_POSITIONS[name]) {
-    curated = CHORD_POSITIONS[name];
+    curated = [...CHORD_POSITIONS[name]];
   } else {
     const variantKey = variant ? note + variant : (quality === 'min' ? note + 'm' : note);
-    if (CHORD_POSITIONS[variantKey]) curated = CHORD_POSITIONS[variantKey];
+    if (CHORD_POSITIONS[variantKey]) curated = [...CHORD_POSITIONS[variantKey]];
   }
 
-  // curated 데이터가 있으면 그대로 반환 (CAGED 근사로 잘못된 운지를 덧붙이지 않음)
-  if (curated) return curated;
-
-  // 2) CAGED 기반 보완 포지션 계산
+  // 2) CAGED 기반 포지션 계산
   const shapeVar = normalizeVariantForShape(variant, quality);
   const noteIdx  = ki(note);
-  if (noteIdx < 0) return curated || [];
-
-  const eFret = (noteIdx - 4 + 12) % 12; // E string root = semitone index 4
-  const aFret = (noteIdx - 9 + 12) % 12; // A string root = semitone index 9
-
   const cagedPositions = [];
 
-  // E-form
-  const ef = E_FORM[shapeVar];
-  if (ef) {
-    const frets = ef.offsets.map(o => o === -1 ? -1 : eFret + o);
-    const fingers = eFret === 0 ? ef.fingersOpen : ef.fingersBar;
-    const pos = eFret === 0 ? '오픈 (E형)' : `E형 ${eFret}프렛`;
-    cagedPositions.push({ frets, fingers, pos });
+  if (noteIdx >= 0) {
+    const eFret = (noteIdx - 4 + 12) % 12;
+    const aFret = (noteIdx - 9 + 12) % 12;
+
+    const ef = E_FORM[shapeVar];
+    if (ef) {
+      const frets   = ef.offsets.map(o => o === -1 ? -1 : eFret + o);
+      const fingers = eFret === 0 ? ef.fingersOpen : ef.fingersBar;
+      const pos     = eFret === 0 ? '오픈 (E형)' : `E형 ${eFret}프렛`;
+      cagedPositions.push({ frets, fingers, pos });
+    }
+
+    const af = A_FORM[shapeVar];
+    if (af) {
+      const frets   = af.offsets.map(o => o === -1 ? -1 : aFret + o);
+      const fingers = aFret === 0 ? af.fingersOpen : af.fingersBar;
+      const pos     = aFret === 0 ? '오픈 (A형)' : `A형 ${aFret}프렛`;
+      cagedPositions.push({ frets, fingers, pos });
+    }
   }
 
-  // A-form (E-form과 프렛 차이가 2이상일 때만)
-  const af = A_FORM[shapeVar];
-  if (af && Math.abs(aFret - eFret) >= 2) {
-    const frets = af.offsets.map(o => o === -1 ? -1 : aFret + o);
-    const fingers = aFret === 0 ? af.fingersOpen : af.fingersBar;
-    const pos = aFret === 0 ? '오픈 (A형)' : `A형 ${aFret}프렛`;
-    cagedPositions.push({ frets, fingers, pos });
+  // 3) curated가 없으면 CAGED 사용, curated가 2개 미만이면 CAGED로 보완
+  let result = curated || [];
+
+  if (result.length < 2) {
+    for (const cp of cagedPositions) {
+      if (result.length >= 3) break;
+      if (!result.some(r => sameShape(r, cp))) {
+        result = [...result, cp];
+      }
+    }
   }
 
-  // 프렛 배열 동일 여부 비교 (pos 문자열이 달라도 같은 운지면 중복 처리)
-  const sameShape = (a, b) =>
-    a.frets.length === b.frets.length && a.frets.every((f, i) => f === b.frets[i]);
+  // 4) fallback: 기본 코드 운지
+  if (!result.length) {
+    const baseKey = quality === 'min' ? note + 'm' : note;
+    result = CHORD_POSITIONS[baseKey] || CHORD_POSITIONS[note] || [];
+  }
 
-  if (cagedPositions.length) return cagedPositions;
-
-  // 3) 최종 fallback: 기본 코드 운지
-  const baseKey = quality === 'min' ? note + 'm' : note;
-  return CHORD_POSITIONS[baseKey] || CHORD_POSITIONS[note] || [];
+  // 5) 낮은 프렛 순 정렬 (오픈 포지션 최우선)
+  return [...result].sort((a, b) => minActiveFret(a) - minActiveFret(b));
 }
