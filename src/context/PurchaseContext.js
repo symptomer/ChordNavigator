@@ -85,6 +85,8 @@ export function PurchaseProvider({ children }) {
       isPremium,
       paywallVisible, showPaywall, hidePaywall,
       purchaseMonthly, purchaseLifetime, restorePurchases,
+      // 패키지 (null이면 해당 상품 미존재)
+      monthlyPkg, lifetimePkg,
       // 가격 표시용 (로드 전엔 기본값)
       monthlyPrice:  monthlyPkg?.product?.priceString  ?? '₩1,900',
       lifetimePrice: lifetimePkg?.product?.priceString ?? '₩8,800',
