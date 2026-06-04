@@ -947,17 +947,17 @@ export const CHORD_POSITIONS = {
   'D#maj9': [
     { frets:[-1,6,3,3,3,3], fingers:[0,4,1,1,1,1], pos:'A형 6프렛' },
     { frets:[-1,8,8,8,8,10], fingers:[0,1,1,1,1,4], pos:'A형 8프렛' },
-    { frets:[-1,-1,12,12,11,13], fingers:[0,0,2,3,1,4], pos:'D형 12프렛' },
+    { frets:[-1,-1,12,12,11,11], fingers:[0,0,4,3,1,1], pos:'D형 11프렛' },
   ],
   Emaj9: [
     { frets:[0,2,1,1,0,2], fingers:[0,3,1,2,0,4], pos:'오픈' },
     { frets:[-1,7,6,8,7,-1], fingers:[0,2,1,4,3,0], pos:'A형 7프렛' },
-    { frets:[-1,-1,9,11,9,11], fingers:[0,0,1,3,1,4], pos:'D형 9프렛' },
+    { frets:[-1,-1,9,9,9,11], fingers:[0,0,1,1,1,4], pos:'D형 9프렛' },
   ],
   Fmaj9: [
     { frets:[1,0,2,0,1,0], fingers:[1,0,3,0,2,0], pos:'오픈' },
     { frets:[-1,8,7,9,8,-1], fingers:[0,2,1,4,3,0], pos:'A형 8프렛' },
-    { frets:[-1,-1,10,12,10,12], fingers:[0,0,1,3,1,4], pos:'D형 10프렛' },
+    { frets:[-1,-1,10,10,10,12], fingers:[0,0,1,1,1,4], pos:'D형 10프렛' },
   ],
   'F#maj9': [
     { frets:[2,1,3,1,2,1], fingers:[2,1,4,1,3,1], pos:'오픈' },
@@ -966,7 +966,7 @@ export const CHORD_POSITIONS = {
   ],
   Gmaj9: [
     { frets:[3,0,0,0,0,2], fingers:[2,0,0,0,0,1], pos:'오픈' },
-    { frets:[-1,-1,4,4,3,5], fingers:[0,0,2,3,1,4], pos:'D형 4프렛' },
+    { frets:[-1,-1,5,4,7,5], fingers:[0,0,2,1,4,3], pos:'D형 5프렛' },
     { frets:[-1,10,9,11,10,-1], fingers:[0,2,1,4,3,0], pos:'A형 10프렛' },
   ],
   'G#maj9': [
@@ -985,7 +985,7 @@ export const CHORD_POSITIONS = {
   ],
   Bmaj9: [
     { frets:[2,2,1,3,2,-1], fingers:[2,2,1,4,3,0], pos:'오픈' },
-    { frets:[-1,-1,4,6,4,6], fingers:[0,0,1,3,1,4], pos:'D형 4프렛' },
+    { frets:[-1,-1,9,8,11,9], fingers:[0,0,2,1,4,3], pos:'D형 9프렛' },
     { frets:[7,6,8,6,7,-1], fingers:[2,1,4,1,3,0], pos:'E형 7프렛' },
   ],
 
@@ -1007,7 +1007,7 @@ export const CHORD_POSITIONS = {
   ],
   'D#m9': [
     { frets:[-1,6,4,6,6,6], fingers:[0,2,1,3,4,4], pos:'A형 6프렛' },
-    { frets:[-1,-1,8,10,7,9], fingers:[0,0,2,4,1,3], pos:'D형 8프렛' },
+    { frets:[-1,-1,8,8,7,9], fingers:[0,0,2,3,1,4], pos:'D형 8프렛' },
     { frets:[-1,9,11,10,11,11], fingers:[0,1,3,2,4,4], pos:'A형 9프렛' },
   ],
   Em9: [
@@ -1023,7 +1023,7 @@ export const CHORD_POSITIONS = {
   'F#m9': [
     { frets:[2,0,2,1,2,0], fingers:[2,0,3,1,4,0], pos:'오픈' },
     { frets:[-1,9,7,9,9,9], fingers:[0,2,1,3,4,4], pos:'A형 9프렛' },
-    { frets:[-1,-1,11,13,10,12], fingers:[0,0,2,4,1,3], pos:'D형 11프렛' },
+    { frets:[-1,-1,11,11,10,12], fingers:[0,0,2,3,1,4], pos:'D형 11프렛' },
   ],
   Gm9: [
     { frets:[3,0,0,3,3,1], fingers:[2,0,0,3,4,1], pos:'오픈' },
@@ -1041,7 +1041,7 @@ export const CHORD_POSITIONS = {
     { frets:[8,0,9,0,8,0], fingers:[1,0,3,0,2,0], pos:'E형 8프렛' },
   ],
   'A#m9': [
-    { frets:[-1,-1,3,5,2,4], fingers:[0,0,2,4,1,3], pos:'D형 3프렛' },
+    { frets:[-1,-1,3,3,2,4], fingers:[0,0,2,3,1,4], pos:'D형 3프렛' },
     { frets:[6,4,-1,5,6,4], fingers:[3,1,0,2,4,1], pos:'E형 6프렛' },
     { frets:[-1,13,11,13,13,-1], fingers:[0,2,1,3,4,0], pos:'A형 13프렛' },
   ],

@@ -106,7 +106,7 @@ function voiceChord(rootName, ivs) {
   var freqs = [];
   var prevMidi = rootMidi - 1;
 
-  ivs.slice(0, 5).forEach(function(iv) {
+  ivs.slice(0, 6).forEach(function(iv) {
     var targetPc = (rootPc + iv) % 12;
     // prevMidi 이후에 오는 targetPc 피치클래스의 최소 MIDI 값
     var midi = prevMidi + 1;
@@ -118,62 +118,98 @@ function voiceChord(rootName, ivs) {
   return freqs;
 }
 
-// ── 기타 음색: 톱니파 + 로우패스, 플럭 엔벨로프 ─────────────────
+// ── 기타 음색: 디튠 sawtooth 2개 + 필터 스윕 (현 진동 시뮬) ──────
 function makeGuitarTone(f, now, vol) {
+  // 두 오실레이터를 약간 디튠 → 코러스/현 진동 느낌
   var o1 = ctx.createOscillator();
   var o2 = ctx.createOscillator();
-  var filter = ctx.createBiquadFilter();
-  var g = ctx.createGain();
-
   o1.type = 'sawtooth';
+  o2.type = 'sawtooth';
   o1.frequency.value = f;
-  o2.type = 'triangle';
-  o2.frequency.value = f * 2;
+  o2.frequency.value = f * 1.0035; // 미세 디튠
 
-  filter.type = 'lowpass';
-  filter.frequency.value = Math.min(f * 4.5, 3500);
-  filter.Q.value = 0.8;
+  // 피킹 직후 밝다가 어두워지는 필터 스윕
+  var lpf = ctx.createBiquadFilter();
+  lpf.type = 'lowpass';
+  lpf.frequency.setValueAtTime(Math.min(f * 10, 6000), now);
+  lpf.frequency.exponentialRampToValueAtTime(Math.min(f * 2.5, 2000), now + 0.25);
+  lpf.Q.value = 1.5;
 
-  var v = vol * 0.11;
+  // 바디 공명 (미드 살짝 부스트)
+  var body = ctx.createBiquadFilter();
+  body.type = 'peaking';
+  body.frequency.value = Math.min(f * 2, 400);
+  body.Q.value = 1.2;
+  body.gain.value = 3;
+
+  var g = ctx.createGain();
+  var v = vol * 0.09;
   g.gain.setValueAtTime(0.001, now);
-  g.gain.linearRampToValueAtTime(v, now + 0.006);
-  g.gain.exponentialRampToValueAtTime(v * 0.35, now + 0.18);
-  g.gain.exponentialRampToValueAtTime(0.001, now + 2.0);
+  g.gain.linearRampToValueAtTime(v, now + 0.004);      // 4ms 빠른 어택
+  g.gain.exponentialRampToValueAtTime(v * 0.38, now + 0.16); // 초기 빠른 감쇠
+  g.gain.exponentialRampToValueAtTime(0.001, now + 2.2);     // 긴 감쇠
 
-  o1.connect(filter);
-  o2.connect(filter);
-  filter.connect(g);
+  o1.connect(lpf);
+  o2.connect(lpf);
+  lpf.connect(body);
+  body.connect(g);
   g.connect(ctx.destination);
-  o1.start(now); o1.stop(now + 2.1);
-  o2.start(now); o2.stop(now + 2.1);
+  o1.start(now); o1.stop(now + 2.3);
+  o2.start(now); o2.stop(now + 2.3);
 }
 
-// ── 피아노 음색: 배음 합성, 퍼커시브 어택 ───────────────────────
+// ── 피아노 음색: 해머 어택 + 인하모닉 배음 + 배음별 개별 decay ────────
 function makePianoTone(f, now, vol) {
-  var amps = [1, 0.55, 0.28, 0.14, 0.07, 0.035];
-  var dur = 2.8;
+  var B = 0.00008;
+  var harmonics = [
+    { n: 1, amp: 1.00,  decay: 2.2 },
+    { n: 2, amp: 0.50,  decay: 1.4 },
+    { n: 3, amp: 0.22,  decay: 0.9 },
+    { n: 4, amp: 0.12,  decay: 0.6 },
+    { n: 5, amp: 0.06,  decay: 0.4 },
+    { n: 6, amp: 0.025, decay: 0.3 },
+  ];
 
-  amps.forEach(function(amp, hi) {
+  harmonics.forEach(function(h) {
     var o = ctx.createOscillator();
     var g = ctx.createGain();
     o.type = 'sine';
-    o.frequency.value = f * (hi + 1);
+    o.frequency.value = f * h.n * Math.sqrt(1 + B * h.n * h.n);
 
-    var v = vol * 0.12 * amp;
+    var v = vol * 0.10 * h.amp;
     g.gain.setValueAtTime(0.001, now);
-    g.gain.linearRampToValueAtTime(v, now + 0.003);
-    g.gain.exponentialRampToValueAtTime(v * 0.55, now + 0.08);
-    g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    g.gain.linearRampToValueAtTime(v, now + 0.002);
+    g.gain.exponentialRampToValueAtTime(v * 0.6, now + 0.04);
+    g.gain.exponentialRampToValueAtTime(0.001, now + h.decay);
 
     o.connect(g);
     g.connect(ctx.destination);
     o.start(now);
-    o.stop(now + dur + 0.05);
+    o.stop(now + h.decay + 0.05);
   });
+
+  // 해머 타격 노이즈 (아주 짧은 퍼쿠시브 어택)
+  var bufSize = Math.floor(ctx.sampleRate * 0.015);
+  var nBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+  var nd = nBuf.getChannelData(0);
+  for (var k = 0; k < bufSize; k++) nd[k] = (Math.random() * 2 - 1) * (1 - k / bufSize);
+  var ns = ctx.createBufferSource();
+  ns.buffer = nBuf;
+  var hpf = ctx.createBiquadFilter();
+  hpf.type = 'highpass';
+  hpf.frequency.value = 1000;
+  var ng = ctx.createGain();
+  ng.gain.setValueAtTime(vol * 0.04, now);
+  ng.gain.exponentialRampToValueAtTime(0.001, now + 0.015);
+  ns.connect(hpf);
+  hpf.connect(ng);
+  ng.connect(ctx.destination);
+  ns.start(now);
+  ns.stop(now + 0.02);
 }
 
 // ── 코드 스케줄 ─────────────────────────────────────────────────
-function scheduleChord(note, variant, quality, vol, instr) {
+function scheduleChord(note, variant, quality, vol, instr, arpBeatMs) {
   var vk = variant || (quality === 'min' ? 'm' : quality === 'dim' ? '\u00b0' : '');
   var ivs = VAR_IV[vk] || [0, 4, 7];
 
@@ -182,15 +218,18 @@ function scheduleChord(note, variant, quality, vol, instr) {
 
   playWhenReady(function() {
     var now = ctx.currentTime;
-    // 기타: 스트럼 시차 38ms, 피아노: 동시에 가깝게 15ms
-    var strumMs = (instr === 'piano') ? 0.015 : 0.038;
+    var isArp = (instr === 'guitar-arp' || instr === 'piano-arp');
+    var isPiano = (instr === 'piano' || instr === 'piano-arp');
+    var strumMs = isArp
+      ? (arpBeatMs || 200) / freqs.length / 1000
+      : isPiano ? 0 : 0.038;
 
     freqs.forEach(function(f, i) {
       var t = now + i * strumMs;
-      if (instr === 'piano') {
+      if (isPiano) {
         makePianoTone(f, t, vol);
       } else {
-        makeGuitarTone(f, t, vol);
+        makeGuitarTone(f, t, vol * (isArp ? 1.1 : 1));
       }
     });
   });
@@ -200,7 +239,7 @@ function handleMsg(raw) {
   try {
     var m = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (m.type === 'playChord') {
-      scheduleChord(m.note, m.variant || '', m.quality, m.vol || 0.5, m.instr || 'guitar');
+      scheduleChord(m.note, m.variant || '', m.quality, m.vol || 0.5, m.instr || 'guitar', m.arpBeatMs);
     } else if (m.type === 'unlock') {
       unlock();
     }
@@ -220,9 +259,9 @@ const AudioEngine = forwardRef((props, ref) => {
   const wvRef = useRef(null);
 
   useImperativeHandle(ref, () => ({
-    playChord: (note, variant, quality, vol = 0.5, instr = 'guitar') => {
+    playChord: (note, variant, quality, vol = 0.5, instr = 'guitar', arpBeatMs) => {
       if (!wvRef.current) return;
-      const msg = JSON.stringify({ type: 'playChord', note, variant: variant || '', quality, vol, instr });
+      const msg = JSON.stringify({ type: 'playChord', note, variant: variant || '', quality, vol, instr, arpBeatMs });
       wvRef.current.injectJavaScript(`handleMsg(${JSON.stringify(msg)});true;`);
     },
     unlock: () => {

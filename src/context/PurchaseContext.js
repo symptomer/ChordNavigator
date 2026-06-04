@@ -6,6 +6,9 @@ const PurchaseContext = createContext(null);
 // RevenueCat API Key — App Store Connect에서 발급 후 여기에 입력
 const RC_API_KEY_IOS = 'appl_DRgqJLXRysIFcMwTWEBCqaImUxh';
 
+// RevenueCat 콘솔에 등록된 entitlement identifier (Product catalog > Entitlements)
+const ENTITLEMENT_ID = 'ChordNavigator Pro';
+
 // TODO: react-native-purchases가 Expo Go에서 지원 안됨 → EAS Build 필요
 // 개발 시 시뮬레이터 빌드: eas build --profile development --platform ios
 const IS_DEV = __DEV__;
@@ -24,7 +27,7 @@ export function PurchaseProvider({ children }) {
 
         // 구독 상태 확인
         const info = await Purchases.getCustomerInfo();
-        setIsPremium(info.entitlements.active['premium'] != null);
+        setIsPremium(info.entitlements.active[ENTITLEMENT_ID] != null);
 
         // 상품 패키지 로드
         const offerings = await Purchases.getOfferings();
@@ -49,7 +52,7 @@ export function PurchaseProvider({ children }) {
     if (!monthlyPkg) return;
     try {
       const { customerInfo } = await Purchases.purchasePackage(monthlyPkg);
-      setIsPremium(customerInfo.entitlements.active['premium'] != null);
+      setIsPremium(customerInfo.entitlements.active[ENTITLEMENT_ID] != null);
       setPaywallVisible(false);
     } catch (e) {
       if (!e.userCancelled) console.warn('[RevenueCat] monthly purchase error:', e.message);
@@ -60,7 +63,7 @@ export function PurchaseProvider({ children }) {
     if (!lifetimePkg) return;
     try {
       const { customerInfo } = await Purchases.purchasePackage(lifetimePkg);
-      setIsPremium(customerInfo.entitlements.active['premium'] != null);
+      setIsPremium(customerInfo.entitlements.active[ENTITLEMENT_ID] != null);
       setPaywallVisible(false);
     } catch (e) {
       if (!e.userCancelled) console.warn('[RevenueCat] lifetime purchase error:', e.message);
@@ -70,7 +73,7 @@ export function PurchaseProvider({ children }) {
   async function restorePurchases() {
     try {
       const info = await Purchases.restorePurchases();
-      const ok   = info.entitlements.active['premium'] != null;
+      const ok   = info.entitlements.active[ENTITLEMENT_ID] != null;
       setIsPremium(ok);
       setPaywallVisible(false);
       return ok;

@@ -11,7 +11,10 @@ function recommendScales(progression, notes) {
   if (!progression.length) return [];
   const usedNotes = new Set(progression.flatMap(p => {
     const r = ki(p.note);
-    return [r, (r + 4) % 12, (r + 7) % 12]; // 기본 구성음
+    // 코드 품질에 따라 정확한 3음 사용
+    const third = p.quality === 'min' || p.quality === 'dim' ? 3 : 4;
+    const fifth  = p.quality === 'dim' ? 6 : 7;
+    return [r, (r + third) % 12, (r + fifth) % 12];
   }));
   const results = [];
   NOTES.forEach(key => {
@@ -27,23 +30,30 @@ function recommendScales(progression, notes) {
   return results.sort((a, b) => b.score - a.score).slice(0, 4);
 }
 
-// 스케일의 다이아토닉 코드 생성
+// 스케일의 다이아토닉 코드 생성 (인터벌에서 품질 직접 계산)
 function getScaleDiatonic(key, intervals) {
   const r = ki(key);
-  // 7음 스케일만 다이아토닉 코드 계산
   if (intervals.length < 7) return [];
   const scNotes = intervals.map(iv => NOTES[(r + iv) % 12]);
-  const qualities = ['maj','min','min','maj','maj','min','dim']; // Ionian 기준
-  return scNotes.map((n, i) => ({
-    note: n,
-    quality: qualities[i],
-    degree: ['I','II','III','IV','V','VI','VII'][i],
-    name: qualities[i] === 'min' ? n + 'm' : qualities[i] === 'dim' ? n + '°' : n,
-  }));
+  return scNotes.map((n, i) => {
+    const third = (intervals[(i + 2) % 7] - intervals[i] + 12) % 12;
+    const fifth  = (intervals[(i + 4) % 7] - intervals[i] + 12) % 12;
+    let quality;
+    if      (third === 4 && fifth === 7) quality = 'maj';
+    else if (third === 3 && fifth === 7) quality = 'min';
+    else if (third === 3 && fifth === 6) quality = 'dim';
+    else if (third === 4 && fifth === 8) quality = 'aug';
+    else quality = third >= 4 ? 'maj' : 'min';
+    const name = quality === 'min' ? n + 'm'
+               : quality === 'dim' ? n + '°'
+               : quality === 'aug' ? n + '+'
+               : n;
+    return { note: n, quality, degree: ['I','II','III','IV','V','VI','VII'][i], name };
+  });
 }
 
 export default function ScaleTab() {
-  const { activeKey, selScale, setSelScale, progression, playChord, setCurChord, setCurVar, setProgression, maxProg } = useApp();
+  const { activeKey, selScale, setSelScale, selKey, setSelKey, setTransKey, progression, playChord, setCurChord, setCurVar, setProgression, maxProg } = useApp();
   const [scaleInstr, setScaleInstr] = useState('guitar');
 
   const scaleNotes = selScale !== null
@@ -54,7 +64,8 @@ export default function ScaleTab() {
   const diatonicChords  = selScale !== null ? getScaleDiatonic(activeKey, SCALE_MODES[selScale].intervals) : [];
 
   function applyRecommended(key, scaleIdx) {
-    // 해당 키+스케일로 선택
+    setSelKey(key);
+    setTransKey(null); // 전조 해제 후 기준 키로 적용
     setSelScale(scaleIdx);
   }
 

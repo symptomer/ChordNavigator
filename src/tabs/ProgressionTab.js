@@ -5,7 +5,7 @@ import {
 import Slider from '@react-native-community/slider';
 import { useApp } from '../context/AppContext';
 import { COLORS, VAR_IV } from '../data/musicData';
-import { getChords, chordNameToNote, chordNameToQuality, chordNameToVariant, getGuitarShapes, flatChordName } from '../utils/musicUtils';
+import { getChords, chordNameToNote, chordNameToQuality, chordNameToVariant, getGuitarShapes, displayChordName } from '../utils/musicUtils';
 import { exportMIDI } from '../utils/midiUtils';
 import GuitarDiagram from '../components/GuitarDiagram';
 import PianoDiagram  from '../components/PianoDiagram';
@@ -164,6 +164,14 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
     ? (VAR_IV[playingChord.variant] || VAR_IV[playingChord.quality === 'min' ? 'm' : playingChord.quality === 'dim' ? '°' : ''] || [0,4,7])
     : null;
 
+  // 슬래시 코드 처리: slashBass 추출 + displayName
+  const playingSlashIdx  = playingChord ? playingChord.name.indexOf('/') : -1;
+  const playingHasSlash  = playingSlashIdx >= 0;
+  const playingSlashBass = playingHasSlash ? playingChord.name.slice(playingSlashIdx + 1) : undefined;
+  const playingDisplayName = playingChord
+    ? displayChordName(playingChord.name, activeKey, selMode)
+    : '';
+
   // 마디 렌더
   // - 마지막 마디: MEASURE_SIZE(4) 슬롯 고정 표시 (빈 슬롯 포함)
   // - 중간 마디: 실제 해당 마디에 속한 코드 수만큼만 표시 (measureBreaks 기준)
@@ -197,7 +205,7 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
                 <Text
                   style={[styles.slotText, p && styles.slotTextFilled, playIdx === i && styles.slotTextPlaying]}
                   numberOfLines={1}>
-                  {p ? flatChordName(p.name, activeKey, selMode) : '·'}
+                  {p ? displayChordName(p.name, activeKey, selMode) : '·'}
                 </Text>
               </TouchableOpacity>
             );
@@ -221,7 +229,7 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
           ].map((s, i) => (
             <View key={i} style={styles.sugChip}>
               <Text style={styles.sugLabel}>{s.label}</Text>
-              <Text style={styles.sugChords}>{s.prog.map(n => flatChordName(n, activeKey, selMode)).join('→')}</Text>
+              <Text style={styles.sugChords}>{s.prog.map(n => displayChordName(n, activeKey, selMode)).join('→')}</Text>
             </View>
           ))}
         </View>
@@ -261,7 +269,7 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
       {playingChord && (
         <View style={styles.fingeringBox}>
           <View style={styles.fingeringHeader}>
-            <Text style={styles.fingeringChordName}>{flatChordName(playingChord.name, activeKey, selMode)}</Text>
+            <Text style={styles.fingeringChordName}>{playingDisplayName}</Text>
             <View style={{ flexDirection: 'row', gap: 6 }}>
               {['guitar', 'piano'].map(instr => (
                 <TouchableOpacity
@@ -295,8 +303,9 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
               <GuitarDiagram
                 shape={curShape}
                 name={playingChord.name}
-                displayName={flatChordName(playingChord.name, activeKey, selMode)}
+                displayName={playingDisplayName}
                 posLabel={curShape?.pos}
+                slashBass={playingSlashBass}
               />
             </View>
           )}
@@ -305,7 +314,8 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
             <PianoDiagram
               rootNote={playingChord.note}
               chordIntervals={pianoIntervals}
-              name={playingChord.name}
+              name={playingDisplayName}
+              slashBass={playingSlashBass}
             />
           )}
         </View>
@@ -336,7 +346,7 @@ export default function ProgressionTab({ onSwitchToAnalyze }) {
             <TouchableOpacity key={i} style={styles.savedItem} onPress={() => handleLoad(p)}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.savedMeta}>{p.key} {p.mode === 'major' ? '장조' : '단조'} · {p.date}</Text>
-                <Text style={styles.savedChords} numberOfLines={1}>{p.chords.map(n => flatChordName(n, p.key, p.mode)).join(' → ')}</Text>
+                <Text style={styles.savedChords} numberOfLines={1}>{p.chords.map(n => displayChordName(n, p.key, p.mode)).join(' → ')}</Text>
               </View>
               <TouchableOpacity style={styles.delBtn} onPress={() => confirmDelete(i)}>
                 <Text style={styles.delBtnText}>✕</Text>

@@ -108,24 +108,64 @@ function getInversionKeys(rootSt, intervals, inversion) {
 }
 
 // ── 슬래시 코드 ───────────────────────────────────────────────────────────
-// LH = 지정 베이스음 | RH = 코드톤 (베이스 pc 제외)
-function getSlashBassKeys(rootSt, intervals, bassNoteName) {
+// LH = 지정 베이스음 (고정) | RH = 상위코드 보이싱 (inversion에 따라 전위)
+// inversion 0 = 루트 포지션, 1 = 1전위(3음 최저), 2 = 2전위(5음 최저)
+function getSlashBassKeys(rootSt, intervals, bassNoteName, inversion = 0) {
   if (!intervals || !intervals.length) return [];
   const bassSt = ki(toSharp(bassNoteName));
   if (bassSt < 0) return getInversionKeys(rootSt, intervals, 0);
 
-  const pcs = [...new Set(intervals.map(iv => (rootSt + iv) % 12))];
+  // 상위코드 pcs (intervals 정의 순서 유지 = [root, 3rd, 5th, ...])
+  const pcsInOrder = [...new Set(intervals.map(iv => (rootSt + iv) % 12))];
+  const n = pcsInOrder.length;
 
-  // LH: 지정 베이스음
-  const result = [{ semitone: bassSt, isRoot: bassSt === rootSt, hand: 'L' }];
+  // LH: 지정 베이스음 (전위와 무관하게 고정)
+  const result = [{ semitone: bassSt, isRoot: bassSt % 12 === rootSt, hand: 'L' }];
 
-  // RH: 베이스 pc 제외한 코드톤
-  const rhPcs = pcs.filter(pc => pc !== bassSt % 12);
-  // 베이스가 코드톤 내에 없는 경우(외부 베이스) — 코드톤 전체 RH에 배치
-  const toPlace = rhPcs.length ? rhPcs : pcs;
+  // RH: 베이스 pc가 코드톤에 있으면 제외, 없으면 전체 사용 (외부 베이스)
+  const rhPcs = pcsInOrder.filter(pc => pc !== bassSt % 12);
+  const toPlace = rhPcs.length ? rhPcs : [...pcsInOrder];
+  const m = toPlace.length;
+  const inv = Math.min(inversion, m - 1);
 
-  for (const pos of placeAbove(toPlace, bassSt)) {
-    result.push({ semitone: pos, isRoot: pos % 12 === rootSt, hand: 'R' });
+  // inv-th pc부터 RH 배치 (순환): inv=0→루트, inv=1→3음, inv=2→5음 최저
+  const rhKeys = [];
+  let cur = bassSt;
+  let allPlaced = true;
+  for (let i = 0; i < m; i++) {
+    let pos = toPlace[(inv + i) % m];
+    while (pos <= cur) pos += 12;
+    if (pos > 23) { allPlaced = false; break; }
+    rhKeys.push({ semitone: pos, isRoot: pos % 12 === rootSt, hand: 'R' });
+    cur = pos;
+  }
+
+  // 순환 배치 실패 시 placeAbove로 폴백 (스팬 최소화, 상위 옥타브 선호)
+  if (!allPlaced) {
+    const placed = placeAbove(toPlace, bassSt);
+    rhKeys.length = 0;
+    placed.forEach(pos =>
+      rhKeys.push({ semitone: pos, isRoot: pos % 12 === rootSt, hand: 'R' }));
+  }
+
+  // 전체 하위 옥타브에 있으면 한 옥타브 위로 이동 (상위 옥타브 선호)
+  if (rhKeys.length > 0 && rhKeys[0].semitone < 12 &&
+      rhKeys[rhKeys.length - 1].semitone + 12 <= 23) {
+    rhKeys.forEach(k => { k.semitone += 12; });
+  }
+
+  result.push(...rhKeys);
+
+  // 트라이어드(3음): RH 3음 보장 — 시작(전위)음 옥타브 더블링
+  if (n <= 3 && result.filter(k => k.hand === 'R').length < 3) {
+    const rhPart = result.filter(k => k.hand === 'R');
+    const maxRhSt = rhPart.length ? Math.max(...rhPart.map(k => k.semitone)) : bassSt;
+    const startPc = toPlace[inv % m];
+    let rd = startPc;
+    while (rd <= maxRhSt) rd += 12;
+    if (rd > 23) rd -= 12;
+    if (rd > bassSt && rd <= 23 && !result.find(k => k.semitone === rd))
+      result.push({ semitone: rd, isRoot: rd % 12 === rootSt, hand: 'R' });
   }
 
   return result;
@@ -152,7 +192,7 @@ export default function PianoDiagram({ activeNotes, name, rootNote, chordInterva
   if (isChordMode) {
     const rootSt = ki(rootNote);
     const keys = slashBass
-      ? getSlashBassKeys(rootSt, chordIntervals, slashBass)
+      ? getSlashBassKeys(rootSt, chordIntervals, slashBass, inversion)
       : getInversionKeys(rootSt, chordIntervals, inversion);
     keys.forEach(k => {
       if (k.hand === 'L') lhStSet.add(k.semitone);
@@ -165,15 +205,16 @@ export default function PianoDiagram({ activeNotes, name, rootNote, chordInterva
 
   function whiteFill(st) {
     if (!isChordMode) return activeNotes?.has(WHITE_NOTES[WHITE_ST.indexOf(st)]) ? RH_COLOR : '#e8e4d0';
-    if (lhStSet.has(st))   return LH_COLOR;
-    if (rootStSet.has(st)) return RH_ROOT;
+    // 분수코드: 베이스음(LH)=골드(루트), 상위 루트=코드톤 / 일반: LH=파랑, 루트=골드
+    if (lhStSet.has(st))   return slashBass ? RH_ROOT  : LH_COLOR;
+    if (rootStSet.has(st)) return slashBass ? RH_COLOR : RH_ROOT;
     if (rhStSet.has(st))   return RH_COLOR;
     return '#e8e4d0';
   }
   function blackFill(st) {
     if (!isChordMode) return activeNotes?.has(BLACK_DEFS.find(b => b.st === st)?.note) ? RH_BLACK : '#222';
-    if (lhStSet.has(st))   return LH_BLACK;
-    if (rootStSet.has(st)) return RH_BLACK_ROOT;
+    if (lhStSet.has(st))   return slashBass ? RH_BLACK_ROOT : LH_BLACK;
+    if (rootStSet.has(st)) return slashBass ? RH_BLACK      : RH_BLACK_ROOT;
     if (rhStSet.has(st))   return RH_BLACK;
     return '#222';
   }
@@ -186,8 +227,17 @@ export default function PianoDiagram({ activeNotes, name, rootNote, chordInterva
       <SvgText x={W / 2} y={14} textAnchor="middle" fill={COLORS.accent}
         fontSize={12} fontWeight="bold">{name}</SvgText>
 
-      {/* 양손 범례 */}
-      {isChordMode && (
+      {/* 범례 */}
+      {isChordMode && (slashBass ? (
+        // 분수코드: 베이스(루트)=골드, 코드톤=갈색
+        <>
+          <Rect x={W/2 - 60} y={20} width={8} height={8} fill={RH_ROOT}  rx={1} />
+          <SvgText x={W/2 - 48} y={27} fill={COLORS.text2} fontSize={8}>베이스(루트)</SvgText>
+          <Rect x={W/2 + 40} y={20} width={8} height={8} fill={RH_COLOR} rx={1} />
+          <SvgText x={W/2 + 52} y={27} fill={COLORS.text2} fontSize={8}>코드톤</SvgText>
+        </>
+      ) : (
+        // 일반 코드: 왼손=파랑, 루트=골드, 코드톤=갈색
         <>
           <Rect x={W/2 - 80} y={20} width={8} height={8} fill={LH_COLOR} rx={1} />
           <SvgText x={W/2 - 68} y={27} fill={COLORS.text2} fontSize={8}>왼손(베이스)</SvgText>
@@ -196,7 +246,7 @@ export default function PianoDiagram({ activeNotes, name, rootNote, chordInterva
           <Rect x={W/2 + 48} y={20} width={8} height={8} fill={RH_COLOR} rx={1} />
           <SvgText x={W/2 + 60} y={27} fill={COLORS.text2} fontSize={8}>코드톤</SvgText>
         </>
-      )}
+      ))}
 
       {/* 흰 건반 */}
       {WHITE_ST.map((st, i) => {

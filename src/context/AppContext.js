@@ -18,11 +18,12 @@ export function AppProvider({ children }) {
   const [progression,setProgression]= useState([]);
   const [selScale,   setSelScale]   = useState(null);
   const [curInstr,   setCurInstr]   = useState('guitar');
+  const [strumMode,  setStrumMode]  = useState('strum'); // 'strum' | 'arp'
   const [selGenre,   setSelGenre]   = useState('pop');
   const [selLevel,   setSelLevel]   = useState('mid');
   const [vol,        setVol]        = useState(0.5);
   const [bpm,        setBpm]        = useState(80);
-  const [maxProg,    setMaxProg]    = useState(16);
+  const [maxProg,    setMaxProg]    = useState(64);
   const [measureBreaks, setMeasureBreaks] = useState([0]); // 각 마디 시작 인덱스
   const [apiKey,     setApiKeyState]= useState('');
   const [saved,      setSaved]      = useState([]);
@@ -66,8 +67,10 @@ export function AppProvider({ children }) {
     if (k) setApiKeyState(k);
   }
 
-  function playChord(note, variant, quality) {
-    audioRef.current?.playChord(note, variant, quality, vol, curInstr);
+  function playChord(note, variant, quality, arpBeatMs) {
+    let instr = curInstr;
+    if (strumMode === 'arp') instr = curInstr === 'guitar' ? 'guitar-arp' : 'piano-arp';
+    audioRef.current?.playChord(note, variant, quality, vol, instr, arpBeatMs);
   }
 
   function resetNavigator() {
@@ -86,7 +89,7 @@ export function AppProvider({ children }) {
       curChord, setCurChord, curVar, setCurVar,
       progression, setProgression,
       selScale, setSelScale,
-      curInstr, setCurInstr,
+      curInstr, setCurInstr, strumMode, setStrumMode,
       selGenre, setSelGenre,
       selLevel, setSelLevel,
       vol, setVol, bpm, setBpm, maxProg, setMaxProg,

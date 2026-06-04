@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0">
+<title>ChordNavigator 사용설명서</title>
+<style>
+  :root {
+    --bg: #0f0f0f; --card: #1a1a1a; --border: #2a2a2a;
+    --text: #e8e8e8; --text2: #888; --accent: #f0c040;
+    --purple: #a78bfa; --blue: #4a7ec8; --green: #4ade80;
+    --pink: #f472b6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, 'Apple SD Gothic Neo', sans-serif;
+    background: var(--bg); color: var(--text);
+    font-size: 15px; line-height: 1.7;
+    padding: 16px; max-width: 720px; margin: 0 auto;
+  }
+  h1 { font-size: 22px; color: var(--accent); border-bottom: 2px solid var(--accent);
+        padding-bottom: 10px; margin: 24px 0 14px; }
+  h2 { font-size: 18px; color: var(--purple); margin: 22px 0 10px; }
+  h3 { font-size: 15px; color: var(--blue); margin: 16px 0 8px; }
+  h4 { font-size: 14px; color: var(--green); margin: 12px 0 6px; }
+  p  { margin-bottom: 10px; }
+  ul, ol { padding-left: 20px; margin-bottom: 10px; }
+  li { margin-bottom: 4px; }
+  code {
+    background: var(--card); color: var(--accent);
+    padding: 2px 6px; border-radius: 4px; font-size: 13px;
+    font-family: 'SF Mono', Menlo, monospace;
+  }
+  pre { background: var(--card); border: 1px solid var(--border);
+         border-radius: 8px; padding: 12px; margin: 10px 0;
+         overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table {
+    width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px;
+  }
+  th { background: var(--card); color: var(--accent); padding: 8px 10px;
+        border: 1px solid var(--border); text-align: left; }
+  td { padding: 7px 10px; border: 1px solid var(--border); color: var(--text); }
+  tr:nth-child(even) td { background: rgba(255,255,255,0.03); }
+  blockquote {
+    border-left: 3px solid var(--purple); padding: 8px 14px;
+    background: rgba(167,139,250,0.08); border-radius: 0 6px 6px 0;
+    margin: 10px 0; color: var(--text2);
+  }
+  hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+  strong { color: var(--accent); }
+  em { color: var(--pink); font-style: normal; }
+  /* TOC back-to-top */
+  .top-btn {
+    position: fixed; bottom: 20px; right: 16px;
+    background: var(--accent); color: var(--bg);
+    border: none; border-radius: 50%; width: 40px; height: 40px;
+    font-size: 18px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; opacity: 0.85;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+</style>
+</head>
+<body>
+<h1>ChordNavigator 사용설명서</h1>
+<hr />
+<h2>목차</h2>
+<ol>
+<li><a href="#1-이-앱은-뭐-하는-앱인가요">이 앱은 뭐 하는 앱인가요?</a></li>
+<li><a href="#2-처음-5분--빠른-시작">처음 5분 — 빠른 시작</a></li>
+<li><a href="#3-홈-화면">홈 화면 — 키·모드·레벨</a></li>
+<li><a href="#4-코드-탭-완전-정복">코드 탭 완전 정복</a></li>
+<li><a href="#5-분석스케일-탭">분석·스케일 탭</a></li>
+<li><a href="#6-실전-시나리오-4가지">실전 시나리오 4가지</a></li>
+<li><a href="#7-자주-묻는-질문-faq">자주 묻는 질문 (FAQ)</a></li>
+<li><a href="#8-음악-이론-미니-사전">음악 이론 미니 사전</a></li>
+<li><a href="#9-프리미엄-기능-안내">프리미엄 기능 안내</a></li>
+</ol>
+<hr />
+<h2>1. 이 앱은 뭐 하는 앱인가요?</h2>
+<p><strong>키를 정하면 쓸 수 있는 코드가 자동으로 나오고, 탭하면 소리가 나고, 진행이 쌓이는 앱.</strong></p>
+<p>악보를 읽을 줄 몰라도, 이론을 몰라도 됩니다.</p>
+<blockquote>
+<p>"C 장조로 팝 느낌 곡을 만들고 싶다"<br />
+→ 키 C, 장조 선택 → 코드 7개가 뜸 → 탭탭탭 → 진행 완성</p>
+</blockquote>
+<ul>
+<li>기타·피아노 연주자가 새 곡 아이디어를 찾을 때</li>
+<li>작곡 중 "다음에 어떤 코드가 어울리지?" 할 때</li>
+<li>코드 이론을 배우면서 직접 듣고 확인하고 싶을 때</li>
+</ul>
+<hr />
+<h2>2. 처음 5분 — 빠른 시작</h2>
+<h3>Step 1. 키와 모드 선택</h3>
+<p>홈 화면에서 <strong>키</strong>(예: C), <strong>모드</strong>(장조/단조), <strong>레벨</strong>(입문)을 고르고 <strong>탐색 시작</strong> 버튼.</p>
+<h3>Step 2. 코드 탭에서 코드 탭하기</h3>
+<p>가운데에 7개 코드가 보입니다. 하나씩 탭해보세요. 탭할 때마다 소리가 납니다.</p>
+<pre><code> I      II     III    IV     V      VI     VII
+ C      Dm     Em     F      G      Am     B°
+</code></pre>
+<p>마음에 드는 코드를 탭하면 아래 진행 히스토리에 쌓입니다.</p>
+<h3>Step 3. 진행 만들기</h3>
+<p>코드를 4개 골라보세요. 예를 들어 <strong>C → Am → F → G</strong> 순서로 탭.</p>
+<pre><code>[마디 1]
+C    Am    F    G
+</code></pre>
+<h3>Step 4. 재생</h3>
+<p><strong>▶ 재생</strong> 버튼을 눌러 진행을 들어보세요. BPM 버튼으로 빠르기 조절 가능.</p>
+<h3>Step 5. 변형해보기</h3>
+<p>C를 탭한 상태에서 아래 <strong>변형 코드</strong> 버튼 중 <code>Cmaj7</code>을 탭해보세요. 느낌이 달라집니다.</p>
+<hr />
+<p>이게 기본 흐름입니다. 나머지 기능(GPS, 기법 제안, 분석 등)은 이 흐름 위에 얹히는 것들입니다.</p>
+<hr />
+<h2>3. 홈 화면</h2>
+<p>앱 실행 시 첫 화면. 여기서 정한 설정이 앱 전체에 적용됩니다.</p>
+<h3>키 (Key)</h3>
+<p>C, C#, D, D#, E, F, F#, G, G#, A, A#, B 중 하나.</p>
+<blockquote>
+<p><strong>모르겠으면 C</strong>로 시작하세요. 나중에 전조 기능으로 언제든 바꿀 수 있습니다.</p>
+</blockquote>
+<h3>장조 / 단조</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>느낌</th>
+<th>예시</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>장조</strong></td>
+<td>밝고 기쁜, 안정적</td>
+<td>팝, 록, 밝은 발라드</td>
+</tr>
+<tr>
+<td><strong>단조</strong></td>
+<td>어둡고 감성적</td>
+<td>슬픈 발라드, 드라마틱한 곡</td>
+</tr>
+</tbody>
+</table>
+<h3>레벨</h3>
+<p>코드의 복잡도를 결정합니다. <strong>처음엔 입문 또는 중급 추천.</strong></p>
+<table>
+<thead>
+<tr>
+<th>레벨</th>
+<th>I·IV도</th>
+<th>V도</th>
+<th>II·III·VI도</th>
+<th>VII도</th>
+<th>특징</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>입문</strong></td>
+<td>C</td>
+<td>G</td>
+<td>Am, Dm, Em</td>
+<td>B°</td>
+<td>기본 3화음. 기타 오픈 코드로 다 잡힘</td>
+</tr>
+<tr>
+<td><strong>중급</strong></td>
+<td>Cmaj7</td>
+<td>G7</td>
+<td>Am7, Dm7, Em7</td>
+<td>Bø7</td>
+<td>7th 추가. 팝·R&amp;B 느낌</td>
+</tr>
+<tr>
+<td><strong>재즈</strong> 🔒</td>
+<td>Cmaj9</td>
+<td>G13</td>
+<td>Am9, Dm9, Em9</td>
+<td>Bø7</td>
+<td>텐션 코드. 재즈·네오소울</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>레벨은 네비게이터 화면의 <strong>분석·스케일 탭</strong>에서도 언제든 바꿀 수 있습니다.</p>
+</blockquote>
+<hr />
+<h2>4. 코드 탭 완전 정복</h2>
+<p>네비게이터 화면의 메인 탭. 화면을 위에서 아래로 훑으면서 설명합니다.</p>
+<hr />
+<h3>상단 바 — 키 표시 및 전조</h3>
+<pre><code>← 키    C 장조    키 →         × 전조 해제    🎵 전조
+</code></pre>
+<ul>
+<li><strong>← 키 / 키 →</strong>: 키를 반음씩 올리거나 내립니다</li>
+<li><strong>🎵 전조</strong>: 키를 한 번에 선택하는 모달 열기</li>
+<li><strong>× 전조 해제</strong>: 원래 키로 복귀</li>
+<li>전조 중에는 배지에 현재 키가 색으로 강조됩니다</li>
+</ul>
+<blockquote>
+<p><strong>전조가 유용한 상황</strong>: C로 만든 진행을 기타리스트는 G로, 보컬 음역에 맞게 조정할 때</p>
+</blockquote>
+<hr />
+<h3>내 진행 (히스토리)</h3>
+<pre><code>[마디 1]                     [마디 2]
+Cmaj9  Am9  Fmaj9  G13   |   Cmaj9  Em9  ...
+                              ↑ 편집 중 (강조)
+</code></pre>
+<p><strong>기본 동작:</strong><br />
+- 코드 탭 → 현재 마디 끝에 추가<br />
+- 4코드 채우면 자동으로 다음 마디 시작<br />
+- <strong>코드 칩 탭</strong>: 그 슬롯에 커서 이동 → 다음에 탭하는 코드로 <strong>교체</strong>됨<br />
+- 마디 헤더 <strong>✕</strong>: 그 마디 전체 삭제<br />
+- 마지막 마디 <strong>＋</strong>: 새 빈 마디 추가 (마디는 무제한 무료)<br />
+- <strong>초기화</strong>: 진행 전체 삭제</p>
+<p><strong>저장 / 불러오기:</strong><br />
+| 버튼 | 기능 |<br />
+|------|------|<br />
+| ☆ 저장 | 현재 진행(키·모드·코드)을 저장 |<br />
+| ↑ 불러오기 | 저장된 목록 표시, 탭하면 불러옴 |</p>
+<ul>
+<li>저장된 항목 오른쪽 <strong>✕</strong>로 삭제</li>
+<li>저장 개수 <strong>무제한 무료</strong></li>
+</ul>
+<hr />
+<h3>재생 컨트롤</h3>
+<pre><code>[기타]  [피아노]    [스트럼]  [아르페지오]
+
+▶ 재생    80 BPM
+         −      +
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>요소</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>기타 / 피아노</strong></td>
+<td>소리 악기 선택</td>
+</tr>
+<tr>
+<td><strong>스트럼</strong></td>
+<td>코드음을 한번에</td>
+</tr>
+<tr>
+<td><strong>아르페지오</strong></td>
+<td>코드음을 순서대로, BPM에 맞춰</td>
+</tr>
+<tr>
+<td><strong>▶ 재생 / ■ 정지</strong></td>
+<td>전체 진행 반복 재생</td>
+</tr>
+<tr>
+<td><strong>BPM 숫자 탭</strong></td>
+<td>숫자 직접 입력 (40~200)</td>
+</tr>
+<tr>
+<td><strong>− / +</strong></td>
+<td>BPM 1씩 조절</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>재생 중에는 현재 연주 중인 코드 칩이 강조됩니다.</p>
+</blockquote>
+<hr />
+<h3>다이아토닉 코드 7개</h3>
+<pre><code> I       II      III     IV      V       VI      VII
+Cmaj9   Dm9    Em9    Fmaj9   G13    Am9    Bø7
+  ↑               ↑
+보라(선택중)    초록점(진행에 포함)
+</code></pre>
+<ul>
+<li><strong>탭</strong>: 소리 재생 + 진행에 추가</li>
+<li><strong>↑ 화살표</strong>: GPS가 추천하는 다음 코드 (최대 3개)</li>
+<li><strong>초록 점</strong>: 이 코드가 진행에 이미 있음</li>
+<li><strong>보라 강조</strong>: 현재 선택된 코드</li>
+</ul>
+<p>아래에 <strong>다음 추천 ›</strong> 줄이 나타나 현재 코드 다음으로 자연스러운 코드들을 보여줍니다.</p>
+<hr />
+<h3>변형 코드</h3>
+<p>코드를 선택하면 바로 아래에 변형 버튼들이 가로로 나열됩니다.</p>
+<p><strong>중급 레벨, C 선택 시:</strong></p>
+<pre><code>C(기본)  Cmaj7  C7  Cadd9  Csus4  Csus2  C6
+</code></pre>
+<p><strong>재즈 레벨, C 선택 시:</strong></p>
+<pre><code>C(기본)  Cmaj7  Cmaj9  C7  C9  C13  Cadd9  Csus4
+</code></pre>
+<p>탭하면 즉시 그 변형으로 바뀌고 소리가 납니다.</p>
+<p><strong>변형 코드 뜻:</strong><br />
+| 변형 | 핵심 | 느낌 |<br />
+|------|------|------|<br />
+| (기본) | 3화음 | 가장 단순하고 깨끗 |<br />
+| maj7 | 장7도 추가 | 부드럽고 몽환적 (로맨틱) |<br />
+| 7 | 단7도 추가 | 긴장감, 블루지 |<br />
+| 9 | 7+9도 | 풍성하고 모던 |<br />
+| 13 | 7+9+13도 | 가장 풍성, 재즈적 |<br />
+| m7 | 단3화음+단7도 | 재즈·R&amp;B 기본 |<br />
+| m9 | m7+9도 | 네오소울 느낌 |<br />
+| add9 | 9도만 추가 (7 없이) | 청명하고 열린 느낌 |<br />
+| sus4 | 3음을 4음으로 교체 | 공중에 뜬 느낌, 미해결 |<br />
+| sus2 | 3음을 2음으로 교체 | 열리고 투명한 느낌 |<br />
+| ø7 | 반감화음 | 긴장, 전환점 |</p>
+<hr />
+<h3>코드 정보 박스</h3>
+<pre><code>┌──────────────────────────┐
+│ Cmaj9                    │
+│ 구성음: C · E · G · B · D│
+│ 대리코드: Am9            │
+└──────────────────────────┘
+</code></pre>
+<ul>
+<li><strong>구성음</strong>: 이 코드를 이루는 음들</li>
+<li><strong>대리코드</strong>: 구성음이 많이 겹쳐서 대신 쓸 수 있는 코드</li>
+</ul>
+<hr />
+<h3>GPS 루트</h3>
+<p><strong>"지금 코드에서 어디로 가면 좋을까?"</strong> 를 3가지 루트 카드로 보여줍니다.</p>
+<pre><code>┌─────────────────────────────┐  ┌──────────────────────────────┐
+│ 팝  · 안정감                │  │ 재즈 · 진행감                │
+│ Cmaj9→Am9→Fmaj9→G13        │  │ Cmaj9→Em9→Dm9→G13           │
+│ [팁: I-VI-IV-V 팝 황금 진행]│  │ [팁: I-III-II-V 재즈 순환]  │
+│              → 이 루트로    │  │              → 이 루트로    │
+└─────────────────────────────┘  └──────────────────────────────┘
+</code></pre>
+<ul>
+<li>각 코드 위에 <strong>역할 라벨</strong> (안정/움직임/따뜻함/색채/해소)</li>
+<li><strong>→ 이 루트로</strong> 버튼: 카드의 코드들을 진행에 한번에 추가</li>
+<li>우측 상단 <strong>규칙</strong> 또는 <strong>AI</strong> 배지: 현재 사용 중인 방식</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>규칙 기반</th>
+<th>AI 기반 🔒</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>조건</td>
+<td>항상 (무료)</td>
+<td>프리미엄 + API 키</td>
+</tr>
+<tr>
+<td>속도</td>
+<td>즉시</td>
+<td>약 1초</td>
+</tr>
+<tr>
+<td>품질</td>
+<td>장르 패턴 기반</td>
+<td>진행 맥락·레벨·장르 종합</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>장르 바꾸기</strong>: 분석·스케일 탭 → 장르 버튼 선택. GPS 루트 스타일이 바뀝니다.</p>
+</blockquote>
+<hr />
+<h3>기법 제안</h3>
+<p>현재 코드에서 쓸 수 있는 <strong>코드 이론 기법</strong>을 2~5가지 자동으로 제안합니다.</p>
+<p>각 기법 그룹 상단에:<br />
+- <strong>▶ 재생</strong>: 기법 시퀀스를 BPM에 맞춰 순서대로 미리 들어보기<br />
+- <strong>→ 사용</strong>: 현재 코드 자리를 이 기법 시퀀스로 교체</p>
+<p>개별 코드 칩을 탭하면 그 코드 하나만 진행에 추가됩니다.</p>
+<hr />
+<p><strong>① 대리코드</strong></p>
+<p>구성음이 많이 겹치는 코드로 교체해 색다른 느낌.</p>
+<table>
+<thead>
+<tr>
+<th>원래 도수</th>
+<th>대리코드</th>
+<th>이유</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>I (Cmaj)</td>
+<td>VI (Am)</td>
+<td>C·E 공유</td>
+</tr>
+<tr>
+<td>VI (Am)</td>
+<td>I (Cmaj)</td>
+<td>반대 방향 대리</td>
+</tr>
+<tr>
+<td>V (G7)</td>
+<td>삼전음 (Db7)</td>
+<td>G7 ↔ Db7는 서로 반음음정 대리</td>
+</tr>
+<tr>
+<td>V (G7)</td>
+<td>II-V (Dm7-G7)</td>
+<td>V를 앞에서 준비</td>
+</tr>
+<tr>
+<td>IV (Fmaj)</td>
+<td>II (Dm)</td>
+<td>F·A 공유</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>② 클리셰</strong></p>
+<p>같은 루트음에서 한 음씩 반음 내려가며 색이 바뀌는 기법. <strong>장조 코드에서만 나타납니다.</strong></p>
+<pre><code>C → Cm → Cm7
+(3음: E → E♭ → E♭, 7음 추가)
+</code></pre>
+<p>팝·발라드에서 자주 들리는 "눈물 흘러내리는" 느낌.</p>
+<hr />
+<p><strong>③ 베이스 하강</strong></p>
+<p>루트음을 유지하면서 <strong>베이스만 반음씩 내려가는</strong> 기법. <strong>I도에서만 나타납니다.</strong></p>
+<pre><code>C → C/B → Am/A → Am/G
+   베이스: C → B → A → G
+</code></pre>
+<p>파헬벨 캐논이 이 원리. 베이스가 계단처럼 내려가며 자연스러운 흐름.</p>
+<hr />
+<p><strong>④ 페달 포인트</strong></p>
+<p>특정 음을 베이스에 고정하고 <strong>그 위 화음만 바꾸는</strong> 기법.</p>
+<pre><code>현재 코드가 C일 때:
+F/C → G/C → Am/C
+(베이스 C 고정, 위 화음만 이동)
+</code></pre>
+<p>전자음악·앰비언트에서 드론처럼 울리는 베이스음 위에 화음이 변하는 그 느낌.</p>
+<hr />
+<p><strong>⑤ 코드 쪼개기 (경과코드)</strong></p>
+<p>다음 코드로 가기 직전에 <strong>그 코드의 도미넌트7을 삽입</strong>하는 기법.</p>
+<pre><code>C → G7 → Am
+     ↑
+  Am의 경과코드 (E7을 넣는 경우도 있음)
+</code></pre>
+<p>목적지 코드가 더 강하게 들리게 만드는 재즈 필수 기법.</p>
+<hr />
+<h3>운지 다이어그램</h3>
+<p>코드 선택 시 화면 하단에 기타·피아노 운지가 표시됩니다.</p>
+<p><strong>탭 전환:</strong></p>
+<pre><code>[기타]  [피아노]  [스트럼]  [아르페지오]
+</code></pre>
+<p><strong>기타 운지:</strong><br />
+- 포지션 버튼 (예: 오픈 / A형 3프렛 / E형 8프렛)으로 다른 포지션 전환 가능<br />
+- <strong>운지 데이터 없음</strong> = 해당 코드 변형에 대한 데이터 미포함 (재즈 확장 코드 일부)</p>
+<p><strong>피아노 운지:</strong><br />
+- <strong>루트 포지션</strong> / <strong>1전위</strong> / <strong>2전위</strong> 버튼으로 전환<br />
+- 색으로 구성음 표시</p>
+<hr />
+<h3>하단 영역 — 추천 진행·곡 매칭·장르 감지</h3>
+<p><strong>추천 진행:</strong></p>
+<pre><code>I-V-VI-IV   I-IV-V-I   II-V-I
+</code></pre>
+<p>팝/재즈에서 자주 쓰는 3가지 정형 패턴. 진행에 있는 코드는 강조 표시.</p>
+<p><strong>곡 매칭:</strong><br />
+진행이 4코드 이상 되면 비슷한 패턴의 유명 곡 이름이 표시됩니다.</p>
+<p><strong>장르 감지:</strong><br />
+쌓인 진행의 도수 패턴을 분석해 "팝 스타일 감지됨" 같은 정보를 표시.</p>
+<hr />
+<h2>5. 분석·스케일 탭</h2>
+<p>하단 <strong>분석·스케일</strong> 탭. 내부에 <strong>분석</strong> / <strong>스케일</strong> 서브탭.</p>
+<hr />
+<h3>분석 서브탭</h3>
+<p>코드 탭에서 만든 진행을 분석하고 개선안을 제안합니다.</p>
+<p><strong>화면 순서:</strong></p>
+<p><strong>1) 코드 진행 입력창</strong><br />
+코드 탭의 진행이 자동으로 들어옵니다. 직접 수정하거나 새로 입력도 가능합니다.</p>
+<pre><code>Cmaj9 Am9 Fmaj9 G13
+</code></pre>
+<p><strong>2) 장르 선택</strong><br />
+팝 / 록 / 재즈 / R&amp;B / 발라드 / 보사노바</p>
+<p><strong>3) 레벨 선택</strong><br />
+입문 / 중급 / 재즈 🔒</p>
+<p><strong>4) 규칙 기반 분석 버튼 (무료)</strong><br />
+API 없이 즉시. 다음 3가지 버전 생성:<br />
+- <strong>7th 버전</strong>: 모든 코드에 7th 추가 (Cmaj9→Cmaj9maj7)<br />
+- <strong>대리코드 버전</strong>: I↔VI, V↔II 대리 적용<br />
+- <strong>재즈 (트리톤 대리)</strong>: dom7 코드를 반음 위 dom7으로 교체</p>
+<p><strong>5) AI 분석 버튼 🔒 (프리미엄 + API 키 필요)</strong><br />
+Claude AI가 맥락을 이해하고 분석합니다.<br />
+- <strong>원본 분석</strong>: "이 진행이 왜 효과적인지" 2문장 설명<br />
+- <strong>장르 버전</strong>: 선택 장르 스타일로 코드 변환<br />
+- <strong>레벨 버전</strong>: 선택 레벨 복잡도로 조정<br />
+- <strong>대리코드 버전</strong>: 대리코드 활용 버전</p>
+<p>각 결과 카드에 <strong>▶ 재생</strong> 버튼으로 미리 들어볼 수 있습니다.</p>
+<p><strong>API 키 설정:</strong><br />
+1. <a href="https://console.anthropic.com">console.anthropic.com</a> 접속 후 API 키 발급<br />
+2. 분석 탭 상단 입력창에 붙여넣기 → <strong>저장</strong><br />
+3. 이후 GPS AI 루트 + AI 분석 모두 활성화됨</p>
+<hr />
+<h3>스케일 서브탭</h3>
+<p>현재 진행에 <strong>어울리는 스케일을 찾아주고</strong>, 선택한 스케일의 지판/건반을 시각화합니다.</p>
+<p><strong>1) 내 진행에 맞는 스케일 (자동 추천)</strong><br />
+코드가 2개 이상 쌓이면 진행의 구성음을 분석해 잘 맞는 스케일 최대 4개 표시.</p>
+<pre><code>C 장조 (Ionian)   98%   ← 1위 (파란 강조)
+A 도리안          82%
+G 믹솔리디안      79%
+...
+</code></pre>
+<p>탭하면 그 키와 스케일이 자동으로 선택되어 아래에 즉시 표시됩니다.</p>
+<p><strong>2) 스케일 모드 직접 선택 (10개)</strong></p>
+<table>
+<thead>
+<tr>
+<th>모드</th>
+<th>특징</th>
+<th>잘 맞는 장르</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ionian (장조)</td>
+<td>밝고 안정적</td>
+<td>팝, 록</td>
+</tr>
+<tr>
+<td>Dorian</td>
+<td>마이너지만 밝은 느낌</td>
+<td>재즈, 펑크, 네오소울</td>
+</tr>
+<tr>
+<td>Phrygian</td>
+<td>어둡고 이국적</td>
+<td>플라멩코, 메탈</td>
+</tr>
+<tr>
+<td>Lydian</td>
+<td>밝고 몽환적 (#4도)</td>
+<td>영화음악, 드림팝</td>
+</tr>
+<tr>
+<td>Mixolydian</td>
+<td>장조지만 b7</td>
+<td>블루스, 록</td>
+</tr>
+<tr>
+<td>Aeolian (단조)</td>
+<td>어둡고 감성적</td>
+<td>발라드, 클래식</td>
+</tr>
+<tr>
+<td>Harmonic Minor</td>
+<td>어둡고 극적</td>
+<td>클래식, 플라멩코</td>
+</tr>
+<tr>
+<td>Pentatonic Major</td>
+<td>단순하고 강렬</td>
+<td>팝, 록 솔로</td>
+</tr>
+<tr>
+<td>Pentatonic Minor</td>
+<td>블루지, 감성적</td>
+<td>블루스, 록 솔로</td>
+</tr>
+<tr>
+<td>Blues</td>
+<td>Pentatonic Minor + b5</td>
+<td>블루스</td>
+</tr>
+</tbody>
+</table>
+<p><strong>3) 구성음 표시</strong><br />
+선택한 키+스케일의 음을 칩으로 표시. 루트음은 보라색으로 강조.</p>
+<p><strong>4) 기타 지판 / 피아노 건반 시각화</strong><br />
+스케일 음 위치를 악기에 직접 표시. 솔로·즉흥 연주 참고용.</p>
+<p><strong>5) 이 스케일의 코드</strong><br />
+7음 스케일이면 7개의 다이아토닉 코드 표시. 탭하면 소리 재생.<br />
+<strong>전체 진행 추가</strong> 버튼으로 7개 코드를 한번에 진행에 추가.</p>
+<hr />
+<h2>6. 실전 시나리오 4가지</h2>
+<h3>시나리오 A: 팝 발라드 만들기</h3>
+<ol>
+<li>홈: <strong>C 장조, 중급</strong> 선택</li>
+<li>코드 탭 → <strong>Cmaj7</strong> 탭 (I)</li>
+<li>하단 GPS 루트에서 "발라드" 느낌 카드 → <strong>→ 이 루트로</strong> 버튼</li>
+<li>진행에 <code>Cmaj7 → Am7 → Fmaj7 → G7</code> 자동 추가</li>
+<li>각 코드 탭해서 변형 조정 (예: G7 → Gsus4 → G7 로 클리셰 효과)</li>
+<li>BPM 70 설정 후 ▶ 재생</li>
+</ol>
+<hr />
+<h3>시나리오 B: "다음 코드 뭐가 어울리지?" 해결하기</h3>
+<ol>
+<li>코드를 몇 개 탭해서 진행 만들기</li>
+<li>마지막으로 고른 코드를 탭 (선택 상태로)</li>
+<li><strong>GPS 루트 카드</strong> 3개 확인 → 분위기 맞는 카드의 코드 개별로 탭해보기</li>
+<li>또는 <strong>다음 추천 ›</strong> 텍스트 아래에 표시된 코드들 탭해보기</li>
+<li><strong>↑ 화살표</strong> 있는 코드도 유력 후보</li>
+</ol>
+<hr />
+<h3>시나리오 C: 커버곡 코드를 앱에서 확인하기</h3>
+<ol>
+<li>분석·스케일 탭 → <strong>분석 서브탭</strong> 진입</li>
+<li>진행 입력창에 직접 코드 입력: <code>Am F C G</code></li>
+<li><strong>규칙 기반 분석</strong> 버튼 → 7th 버전, 대리코드 버전 등 제안 확인</li>
+<li>마음에 드는 버전 카드의 <strong>▶ 재생</strong> 으로 미리 듣기</li>
+<li>코드 탭으로 돌아가 그 코드들 직접 탭해서 구현</li>
+</ol>
+<hr />
+<h3>시나리오 D: 솔로·즉흥 연주를 위한 스케일 찾기</h3>
+<ol>
+<li>코드 탭에서 진행 4코드 이상 만들기</li>
+<li><strong>분석·스케일 탭 → 스케일 서브탭</strong> 진입</li>
+<li>상단 <strong>추천 스케일</strong> 중 1위 탭 → 키와 스케일 자동 적용</li>
+<li><strong>기타 지판</strong> 또는 <strong>피아노 건반</strong> 탭에서 스케일 음 위치 확인</li>
+<li>코드 탭으로 돌아가 ▶ 재생하면서 스케일 연습</li>
+</ol>
+<hr />
+<h2>7. 자주 묻는 질문 (FAQ)</h2>
+<p><strong>Q. 운지 데이터 없음이 뜨는 코드가 있어요.</strong><br />
+일부 재즈 확장 코드(maj9, m11 등)는 운지 데이터가 없습니다. 대신 CAGED 시스템 기반 근사 운지가 자동 계산되지만, 커버되지 않는 경우 "운지 데이터 없음" 표시가 납니다. 이때는 기본 변형(예: maj7)을 선택하거나 직접 운지를 찾아보세요.</p>
+<p><strong>Q. GPS 루트 카드가 항상 비슷하게 나와요.</strong><br />
+장르 설정을 바꿔보세요. 분석·스케일 탭 → 분석 서브탭 → 장르 선택. 팝·재즈·발라드·보사노바별로 다른 패턴이 나옵니다.</p>
+<p><strong>Q. 편집 커서가 어떻게 작동하나요?</strong><br />
+진행 히스토리에서 <strong>이미 있는 코드 칩을 탭</strong>하면 그 슬롯에 편집 커서가 생깁니다. 이후 다이아토닉 코드 버튼을 탭하면 새로 추가되는 게 아니라 그 자리가 <strong>교체</strong>됩니다. 새로 추가 모드로 돌아가려면 빈 공간을 탭하거나 마지막 마디 뒤 <strong>＋</strong> 버튼을 누르세요.</p>
+<p><strong>Q. 전조와 키 변경의 차이가 뭔가요?</strong><br />
+- <strong>홈 화면 키 설정</strong>: 처음부터 그 키로 시작<br />
+- <strong>전조 (네비게이터 상단 🎵 전조)</strong>: 현재 진행은 유지하되 다이아토닉 코드·GPS 루트·기법 제안의 <strong>기준 키만 임시 변경</strong>. "전조 해제"하면 원래 키로 돌아옴</p>
+<p><strong>Q. 재즈 레벨이 잠겨 있어요.</strong><br />
+재즈 레벨은 프리미엄 기능입니다. 분석 탭에서 <strong>재즈</strong> 버튼을 탭하면 구독 안내 화면이 나타납니다.</p>
+<p><strong>Q. API 키 없이도 AI 기능을 쓸 수 있나요?</strong><br />
+아니요. AI GPS 루트와 AI 분석은 Anthropic API 키가 필요합니다. <a href="https://console.anthropic.com">console.anthropic.com</a>에서 발급 후 분석 탭 상단에 입력하세요. 키 없이는 규칙 기반(무료) 기능만 사용됩니다.</p>
+<p><strong>Q. 저장한 진행이 사라졌어요.</strong><br />
+저장은 기기 로컬에 저장됩니다. 앱 삭제 시 함께 삭제됩니다.</p>
+<p><strong>Q. 3화음(기본)과 7화음의 차이를 모르겠어요.</strong><br />
+3화음은 루트·3도·5도 3개 음, 7화음은 거기에 7도 음이 하나 더 추가됩니다. 소리를 직접 들어보는 게 가장 빠릅니다. 같은 코드를 탭한 상태에서 변형 버튼 <code>C(기본)</code> → <code>Cmaj7</code> → <code>C7</code> 순서로 눌러보세요.</p>
+<hr />
+<h2>8. 음악 이론 미니 사전</h2>
+<p>앱을 쓰다 보면 자주 만나는 용어들.</p>
+<h3>다이아토닉 코드</h3>
+<p>특정 키의 음계(7개 음) 각각을 루트로 하는 7개 코드.<br />
+이 7개 안에서 코드를 고르면 거의 다 어울립니다.</p>
+<p>예: <strong>C 장조</strong> = C D E F G A B<br />
+- C를 루트 → Cmaj (I)<br />
+- D를 루트 → Dm (II)<br />
+- G를 루트 → G (V)</p>
+<h3>도수 (I~VII)</h3>
+<p>코드가 음계의 몇 번째 음을 루트로 하는지. 로마 숫자로 표기.<br />
+- <strong>I도</strong>: 으뜸화음. 가장 안정적. 곡의 시작·끝에 많이 쓰임<br />
+- <strong>V도</strong>: 딸림화음. 긴장감 최고. I도로 해결하려는 힘이 강함<br />
+- <strong>IV도</strong>: 버금딸림. 안정적이지만 움직임이 있음<br />
+- <strong>VI도</strong>: 나란한조 으뜸. I도 대신 써도 자연스러움 (대리코드)</p>
+<h3>도미넌트</h3>
+<p>V도 코드. C 장조에서는 G 또는 G7.<br />
+<strong>긴장감을 만들어 I도(해결)로 이끄는 코드.</strong></p>
+<h3>대리코드 (Substitution)</h3>
+<p>구성음이 많이 겹쳐서 서로 대신 쓸 수 있는 코드.<br />
+- Cmaj (C·E·G) ↔ Am (A·C·E): C·E 공유 → 서로 대리 가능</p>
+<h3>전위 (피아노 운지)</h3>
+<ul>
+<li><strong>루트 포지션</strong>: 루트음이 가장 아래 (C-E-G)</li>
+<li><strong>1전위</strong>: 3음이 가장 아래 (E-G-C)</li>
+<li><strong>2전위</strong>: 5음이 가장 아래 (G-C-E)</li>
+</ul>
+<h3>텐션 코드 (9th, 11th, 13th)</h3>
+<p>기본 4화음(7th)에 음을 더 추가한 코드.<br />
+9th = 2도 위 음, 11th = 4도 위 음, 13th = 6도 위 음.<br />
+음이 쌓일수록 풍성하고 재즈스러워집니다.</p>
+<h3>삼전음 (Tritone Substitution)</h3>
+<p>도미넌트7 코드를 정확히 반음계의 6음 위(반 옥타브) 코드로 교체하는 기법.<br />
+G7 ↔ Db7 (서로의 3음·7음이 뒤바뀜)<br />
+재즈에서 V도를 더 색다르게 표현할 때 사용.</p>
+<hr />
+<h2>9. 프리미엄 기능 안내</h2>
+<table>
+<thead>
+<tr>
+<th>기능</th>
+<th>무료</th>
+<th>프리미엄</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>다이아토닉 코드</td>
+<td>입문·중급</td>
+<td><strong>+ 재즈 레벨</strong></td>
+</tr>
+<tr>
+<td>GPS 루트</td>
+<td>규칙 기반</td>
+<td><strong>+ AI 기반 (Claude Haiku)</strong></td>
+</tr>
+<tr>
+<td>AI 코드 분석</td>
+<td>✕</td>
+<td><strong>✓ (Claude Sonnet)</strong></td>
+</tr>
+<tr>
+<td>직접 입력 후 AI 분석</td>
+<td>✕</td>
+<td><strong>✓</strong></td>
+</tr>
+<tr>
+<td>마디</td>
+<td>무제한</td>
+<td>—</td>
+</tr>
+<tr>
+<td>저장</td>
+<td>무제한</td>
+<td>—</td>
+</tr>
+<tr>
+<td>운지 다이어그램</td>
+<td>모두</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><strong>요금:</strong><br />
+- 월간 구독: <strong>₩1,900 / 월</strong><br />
+- 평생 이용: <strong>₩8,800</strong> (1회 결제)</p>
+<blockquote>
+<p>5개월 이상 쓸 예정이면 평생 이용이 이득입니다 (5개월 = ₩9,500).</p>
+</blockquote>
+<p><strong>구독 화면 열기:</strong> 재즈 레벨 버튼 또는 AI 분석 버튼 탭 시 자동으로 표시됩니다.</p>
+<hr />
+<p><em>ChordNavigator — 코드 탐색 도구</em></p>
+<button class="top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+</body>
+</html>

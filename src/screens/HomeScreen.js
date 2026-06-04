@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { usePurchase } from '../context/PurchaseContext';
 import { COLORS, NOTES } from '../data/musicData';
+import ManualModal from './ManualModal';
 
 export default function HomeScreen({ navigation }) {
   const { selKey, setSelKey, selMode, setSelMode, selLevel, setSelLevel, resetNavigator, loadApiKey } = useApp();
+  const { isPremium, showPaywall } = usePurchase();
+  const [manualVisible, setManualVisible] = useState(false);
 
   React.useEffect(() => { loadApiKey(); }, []);
 
@@ -17,8 +21,12 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <ManualModal visible={manualVisible} onClose={() => setManualVisible(false)} />
       <ScrollView contentContainerStyle={styles.wrap}>
         <View style={styles.hero}>
+          <TouchableOpacity style={styles.helpBtn} onPress={() => setManualVisible(true)}>
+            <Text style={styles.helpBtnText}>?</Text>
+          </TouchableOpacity>
           <Text style={styles.heroChar}>♩</Text>
           <Text style={styles.heroTitle}>CHORD NAVIGATOR</Text>
           <Text style={styles.heroSub}>코드 진행 탐색기</Text>
@@ -54,8 +62,13 @@ export default function HomeScreen({ navigation }) {
             <TouchableOpacity
               key={lv}
               style={[styles.lvbtn, selLevel === lv && styles.lvbtnSel]}
-              onPress={() => setSelLevel(lv)}>
-              <Text style={[styles.lvbtnText, selLevel === lv && styles.lvbtnTextSel]}>{label}</Text>
+              onPress={() => {
+                if (lv === 'jazz' && !isPremium) { showPaywall(); return; }
+                setSelLevel(lv);
+              }}>
+              <Text style={[styles.lvbtnText, selLevel === lv && styles.lvbtnTextSel]}>
+                {lv === 'jazz' && !isPremium ? '🔒 재즈' : label}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -76,7 +89,9 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   safe:          { flex: 1, backgroundColor: COLORS.bg },
   wrap:          { padding: 16, paddingBottom: 40 },
-  hero:          { alignItems: 'center', paddingVertical: 28 },
+  hero:          { alignItems: 'center', paddingVertical: 28, position: 'relative' },
+  helpBtn:       { position: 'absolute', top: 8, right: 0, width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg3 },
+  helpBtnText:   { fontSize: 15, color: COLORS.text2, fontWeight: '700', lineHeight: 18 },
   heroChar:      { fontSize: 56, color: COLORS.accent },
   heroTitle:     { fontSize: 14, color: COLORS.accent, letterSpacing: 4, marginTop: 4, fontWeight: '700' },
   heroSub:       { fontSize: 11, color: COLORS.text2, letterSpacing: 2, marginTop: 4 },

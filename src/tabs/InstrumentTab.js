@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { COLORS, VAR_IV } from '../data/musicData';
-import { getChordTones, ki, getVariantKey, getGuitarShapes } from '../utils/musicUtils';
+import { getChordTones, ki, getVariantKey, getGuitarShapes, chordNameToNote, displayChordName, TO_FLAT, usesFlatDisplay } from '../utils/musicUtils';
 import GuitarDiagram from '../components/GuitarDiagram';
 import PianoDiagram  from '../components/PianoDiagram';
 
@@ -10,7 +10,7 @@ const GUITAR_POS_LABELS = ['오픈 / 1포지션', '2포지션', '3포지션'];
 const PIANO_POS_LABELS  = ['루트 포지션', '1전위', '2전위'];
 
 export default function InstrumentTab() {
-  const { curChord, curVar, curInstr, setCurInstr } = useApp();
+  const { curChord, curVar, curInstr, setCurInstr, activeKey, selMode } = useApp();
   const [posIdx, setPosIdx] = useState(0);
 
   function getGuitarPositions() {
@@ -35,6 +35,16 @@ export default function InstrumentTab() {
 
   // 전위 가능한 수: intervals.length 에 따라 2전위까지 또는 1전위까지
   const maxInv = Math.min(2, chordIntervals.length - 1);
+
+  // 슬래시 코드 처리
+  const slashIdx   = curChord ? curChord.name.indexOf('/') : -1;
+  const hasSlash   = slashIdx >= 0;
+  const slashBass  = hasSlash ? curChord.name.slice(slashIdx + 1) : undefined;
+  const chordPart  = hasSlash ? curChord.name.slice(0, slashIdx) : null;
+  const pianoRoot  = curChord ? (hasSlash ? chordNameToNote(chordPart) : curChord.note) : null;
+  const flatBass   = slashBass && usesFlatDisplay(activeKey, selMode)
+    ? (TO_FLAT[slashBass] || slashBass) : slashBass;
+  const displayName = curChord ? displayChordName(curChord.name, activeKey, selMode) : '';
 
   return (
     <ScrollView style={styles.wrap} contentContainerStyle={{ paddingBottom: 20 }}>
@@ -87,7 +97,9 @@ export default function InstrumentTab() {
                 <GuitarDiagram
                   shape={currentGuitarShape}
                   name={curChord.name}
+                  displayName={displayName}
                   posLabel={currentGuitarShape.pos}
+                  slashBass={slashBass}
                 />
               ) : (
                 <Text style={styles.hint}>운지 데이터 없음</Text>
@@ -96,18 +108,21 @@ export default function InstrumentTab() {
           ) : (
             <View style={styles.diagWrap}>
               <PianoDiagram
-                name={curChord.name}
-                rootNote={curChord.note}
+                name={displayName}
+                rootNote={pianoRoot}
                 chordIntervals={chordIntervals}
                 inversion={clampedPos}
+                slashBass={slashBass}
               />
               <Text style={styles.tonesText}>
-                구성음: {getChordTones(curChord.note, curVar, curChord.quality).join(' · ')}
+                구성음: {getChordTones(pianoRoot, curVar, curChord.quality).join(' · ')}
               </Text>
               <Text style={styles.invHint}>
-                {clampedPos === 0 ? '루트 포지션 — 근음이 최저음'
-                  : clampedPos === 1 ? '1전위 — 3음이 최저음'
-                  : '2전위 — 5음이 최저음'}
+                {hasSlash
+                  ? `분수코드 — ${flatBass || slashBass}이(가) 최저음 (고정)`
+                  : (clampedPos === 0 ? '루트 포지션 — 근음이 최저음'
+                      : clampedPos === 1 ? '1전위 — 3음이 최저음'
+                      : '2전위 — 5음이 최저음')}
               </Text>
             </View>
           )}

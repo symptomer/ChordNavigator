@@ -4,6 +4,7 @@ import {
   ScrollView, StyleSheet, Alert, ActivityIndicator,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { usePurchase } from '../context/PurchaseContext';
 import { COLORS, GENRE_PROGS } from '../data/musicData';
 import { getChords } from '../utils/musicUtils';
 
@@ -14,6 +15,8 @@ export default function AnalyzeTab() {
     selGenre, setSelGenre, selLevel, setSelLevel,
     playChord,
   } = useApp();
+
+  const { isPremium, showPaywall } = usePurchase();
 
   const [apiInput,  setApiInput]  = useState(apiKey);
   const [progInput, setProgInput] = useState('');
@@ -30,6 +33,7 @@ export default function AnalyzeTab() {
   }
 
   async function runAI() {
+    if (!isPremium) { showPaywall(); return; }
     if (!progInput.trim()) { Alert.alert('코드를 입력하세요'); return; }
     if (!apiKey)            { Alert.alert('API 키를 먼저 입력하세요'); return; }
     setLoading(true); setResults(null);
@@ -80,16 +84,21 @@ export default function AnalyzeTab() {
     const diatonic = getChords(activeKey, selMode);
 
     const with7 = chords.map(c => {
-      if (c.match(/[°7]|maj7|m7|add/)) return c;
+      if (c.match(/[°7]|maj7|m7|add|sus/)) return c;
       return c.includes('m') && !c.includes('maj') ? c + '7' : c + 'maj7';
     });
 
-    const subMap = {};
+    // 노트 기준 대리코드 매핑 (확장 코드명에도 작동)
+    const noteSubMap = {};
     diatonic.forEach((c, i) => {
-      if (i === 0 && diatonic[5]) subMap[c.name] = diatonic[5].name;
-      if (i === 4 && diatonic[1]) subMap[c.name] = diatonic[1].name;
+      if (i === 0 && diatonic[5]) noteSubMap[c.note] = diatonic[5];
+      if (i === 4 && diatonic[1]) noteSubMap[c.note] = diatonic[1];
     });
-    const subChords = chords.map(c => subMap[c] || c);
+    const subChords = chords.map(c => {
+      const note = c.match(/^[A-G][b#]?/)?.[0];
+      const sub  = note && noteSubMap[note];
+      return sub ? sub.name : c;
+    });
 
     const tritone = chords.map(c => {
       if (!c.includes('7') || c.includes('maj7')) return c;
@@ -115,10 +124,10 @@ export default function AnalyzeTab() {
     function tick() {
       if (i >= chordNames.length) return;
       const name = chordNames[i];
-      const note = name.replace(/m7?|maj7|°|add9|sus[24]|[679]|ø7/g, '');
+      const note = name.match(/^[A-G][b#]?/)?.[0] || 'C';
       const qual = name.includes('m') && !name.includes('maj') ? 'min'
                  : name.includes('°') ? 'dim' : 'maj';
-      playChord(note || 'C', '', qual);
+      playChord(note, '', qual);
       i++;
       if (i < chordNames.length) setTimeout(tick, 1500);
     }
@@ -172,11 +181,14 @@ export default function AnalyzeTab() {
       {/* Level */}
       <Text style={styles.label}>레벨</Text>
       <View style={styles.levelRow}>
-        {[['beginner','입문'],['mid','중급'],['jazz','재즈']].map(([k, label]) => (
+        {[['beginner','입문'],['mid','중급'],['jazz','재즈 🔒']].map(([k, label]) => (
           <TouchableOpacity
             key={k}
             style={[styles.lvbtn, selLevel === k && styles.lvbtnSel]}
-            onPress={() => setSelLevel(k)}>
+            onPress={() => {
+              if (k === 'jazz' && !isPremium) { showPaywall(); return; }
+              setSelLevel(k);
+            }}>
             <Text style={[styles.lvbtnText, selLevel === k && styles.lvbtnTextSel]}>{label}</Text>
           </TouchableOpacity>
         ))}
@@ -184,7 +196,7 @@ export default function AnalyzeTab() {
 
       {/* Buttons */}
       <TouchableOpacity style={[styles.fullBtn, { backgroundColor: COLORS.purple }]} onPress={runAI}>
-        <Text style={styles.fullBtnText}>✦ AI 분석 (Claude)</Text>
+        <Text style={styles.fullBtnText}>{isPremium ? '✦ AI 분석 (Claude)' : '🔒 AI 분석 (프리미엄)'}</Text>
       </TouchableOpacity>
       <TouchableOpacity style={[styles.fullBtn, { backgroundColor: COLORS.bg3 }]} onPress={runLocal}>
         <Text style={styles.fullBtnText}>⚙ 규칙 기반 분석 (API 없이)</Text>
