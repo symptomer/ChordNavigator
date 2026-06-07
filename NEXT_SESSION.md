@@ -1,9 +1,43 @@
 # ChordNavigator — 다음 세션 작업 계획
 
 **프로젝트 경로:** `/Users/symptomer/Documents/ChordNavigator`
-**최근 작업:** 2026-06-06 세션 (7차) — 🎉 App Store 출시 완료 + 버그 수정 + AI 백엔드(Cloudflare Worker+Gemini) 구축
+**최근 작업:** 2026-06-07 세션 (8차) — 🎚️ 기법 제안 소리·운지 정합성 대수술 + 보이스리딩 운지 + 음색 개선 (커밋 완료, 빌드 대기)
 **현재 브랜치:** main
 **GitHub:** https://github.com/symptomer/ChordNavigator
+
+---
+
+## 🎚️ 2026-06-07 (8차) — 기법 소리/운지 정합성 + 보이스리딩 + 음색 (커밋됨, 미푸시/미빌드)
+
+### ✅ 완료 (커밋 `e71b2af`, 그 앞 7차 커밋 `6713ad6`·`f00a634` 포함, **GitHub 푸시 안 됨**)
+실기기 테스트 피드백을 반복 반영해 "기법 제안" 전반을 수정:
+
+1. **소리 = 화면 운지 일치** — 오디오가 이전엔 자체 보이싱(`voiceChord`)을 새로 계산해 다이어그램과 불일치했음. 이제 **표시된 운지(기타 프렛/피아노 건반)의 실제 음을 그대로 발음**.
+   - AudioEngine: `scheduleVoicing`/`playVoicing`(명시 MIDI 배열 발음) 추가. AppContext `playVoicing` 추가.
+   - ChordsTab `displayedVoicingMidis(chord, variant, instr, shapeIdx)` = 표시 운지 → MIDI. 기타 `GUITAR_BASE=[40,45,50,55,59,64]+fret`, 피아노 `pianoVoicingMidis`.
+2. **라벨/품질/베이스 정확화** — `resolveTechItem`로 라벨 재파싱. 클리셰가 전부 같은 3화음으로 울리던 것, 페달 `Dm/A`가 `Am`로 울리던 것, 베이스하강 `Dm`이 `D`로 울리던 것 수정.
+3. **보이스리딩 운지 엔진** (`musicUtils.js`) — 공통음 유지 + 변하는 음이 인접 위치로 "이어지는" 연주가능 운지.
+   - `chordVoicings(pcs,bassPc,rootPc)` 후보 생성 + `voiceLeadSequence(specs)` DP 선택(이동량 최소).
+   - `pianoVoiceLeadSequence(specs)` — 피아노 **오디오 전용**(베이스가 C 아래로 절대음정 하강). 베이스하강에만 `pShape`로 부착.
+   - `getTechniques`에서 클리셰(maj/min)·베이스하강·페달 items에 `gShape`(+베이스하강은 `pShape`) 첨부 → progression/curChord에 흐름.
+   - 검증: C클리셰 기타 하강성부 **G줄 5→4→3→2**(사용자 명시), 베이스하강 최저음 C→B→A→G, 12키 전수 연주가능.
+4. **다이어그램 통합** — '재생중 운지'와 하단 '운지' 2개 → **진행 바로 아래 1개**로 통합. 재생 중엔 연주 코드 따라가고 **정지 시 마지막 코드 운지 유지**(`stopPlay`에서 `setCurChord`).
+5. **피아노 다이어그램** — 슬래시 RH **풀 트라이어드**(노란건반 ≥3), `F/A≠Dm/A`, 베이스 **파란색 일관**(루트/코드톤 색 통합 → 범례 "왼손(베이스)=파랑 / 코드톤=노랑"). `getInversionKeys`/`getSlashBassKeys`/`placeAbove`를 PianoDiagram→musicUtils로 이동(단일 출처).
+6. **베이스하강 라벨 슬래시** — `Cmaj7/B`·`Am7/G`로 바꿔 피아노가 베이스음 변화를 표시.
+7. **음색** — 기타: **통기타(어쿠스틱)** triangle 기음+약배음+유니즌+피크노이즈+바디공명, **베이스음 약 1.5배 강조**. 피아노: **어쿠스틱 그랜드**(배음 8개·인하모닉시티·유니즌 디튠). → **이름 "피아노" 유지**. (사용자 평: 전보단 낫지만 완전 만족은 아님 → 추후 다듬을 여지)
+
+**수정 파일:** `src/components/AudioEngine.js`, `src/components/PianoDiagram.js`, `src/components/GuitarDiagram.js`(이전), `src/context/AppContext.js`, `src/context/PurchaseContext.js`, `src/tabs/ChordsTab.js`, `src/tabs/AnalyzeTab.js`, `src/utils/musicUtils.js`, 신규 `src/utils/purchases.js`.
+
+### ⏭️ 새 세션에서 할 일 (이 순서)
+1. **(필요시) GitHub 푸시** — `git push origin main`. ⚠️ 이번 세션엔 자동승인 정책이 main 직접 푸시를 막음 → 사용자 명시 승인 또는 직접 푸시 필요. (EAS 빌드는 푸시 없이도 됨)
+2. **EAS 1.0.1 프로덕션 빌드** — `eas build --platform ios --profile production --non-interactive --no-wait` (build #13, autoIncrement). ⚠️ 이번 세션엔 "프로덕션 배포"로 분류돼 자동승인이 막음 → **사용자 명시 승인 필요**. (app.json version 이미 `1.0.1`, eas.json appVersionSource remote)
+3. **App Store Connect 재심사 제출** — 7차 계획대로: 버전 1.0.1 생성 → 새 빌드 연결 → ASO(부제·키워드·설명, 7차 섹션 참조) 입력 → 제출. ascAppId `6772862881`, appleId `symptomers@naver.com`.
+4. **(선택) 음색 추가 튜닝** — 사용자가 음색 완전 만족은 아님. 기타/피아노 밝기·감쇠·베이스강조량 등 `AudioEngine.js` `makeGuitarTone`/`makePianoTone`/`bassEmph`에서 조정.
+
+### 🧪 개발/테스트 메모 (새 세션 필수)
+- **Expo Go 실행:** `EXPO_NO_TYPESCRIPT_SETUP=1 npx expo start` (⚠️ `server/` 폴더의 .ts 파일 때문에 일반 `expo start`는 TypeScript 의존성 요구하며 멈춤 → 이 env로 우회). LAN: `exp://<IP>:8081` (이번 IP `220.74.115.84`).
+- **Expo Go 호환:** `react-native-purchases`는 Expo Go에서 브라우저 모드로 뜨고 configure는 실패(무해, try/catch). `src/utils/purchases.js` 가드로 import 크래시 방지. 결제는 Expo Go에서 비활성 — 실결제 테스트는 dev build 필요.
+- **로직 검증 방법(소리 못 들으므로 핵심):** `@babel/plugin-transform-modules-commonjs`로 require 훅 걸어 실제 `musicUtils` 함수 로드 → `voiceLeadSequence`/`pianoVoiceLeadSequence`/`getSlashBassKeys`/`displayedVoicingMidis` 출력 단언. (이번 세션 /tmp 스크립트들은 휘발성 — 필요시 재작성. NODE_PATH=프로젝트 node_modules 로 실행.)
 
 ---
 
