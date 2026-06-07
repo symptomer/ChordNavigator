@@ -7,7 +7,7 @@ import { useApp } from '../context/AppContext';
 import { usePurchase } from '../context/PurchaseContext';
 import { COLORS, LEVEL_DEFAULT, LEVEL_VARS, NOTES, GENRE_PROGS, VAR_IV } from '../data/musicData';
 import { getChords, getChordTones, getSubstitutes, ki, getGuitarShapes, getVariantKey, flatChordName, displayChordName,
-         chordNameToNote, chordNameToQuality, chordNameToVariant, TO_FLAT, usesFlatDisplay } from '../utils/musicUtils';
+         chordNameToNote, chordNameToQuality, chordNameToVariant, TO_FLAT, usesFlatDisplay, flatNote } from '../utils/musicUtils';
 import { exportMIDI } from '../utils/midiUtils';
 import { SONG_PATTERNS } from '../data/songPatterns';
 import GuitarDiagram from '../components/GuitarDiagram';
@@ -124,16 +124,18 @@ const GENRE_PATTERNS = {
 
 const DEG_NAMES = ['I','II','III','IV','V','VI','VII'];
 
-function getLevelSuffixStatic(quality, degIdx, levelDef) {
+function getLevelSuffixStatic(quality, degIdx, levelDef, mode) {
   if (!levelDef) return '';
   if (quality === 'dim') return levelDef.dim;
   if (quality === 'min') return levelDef.min;
-  if (degIdx === 4)      return levelDef.V;
+  // 도미넌트 7화음 위치: 장조는 V(4), 자연단조는 VII(6) — 자연단조 VII은 C7 같은 도미넌트
+  const domIdx = mode === 'minor' ? 6 : 4;
+  if (degIdx === domIdx) return levelDef.V;
   return levelDef.maj;
 }
 
 // 규칙 기반 GPS 루트 계산 (즉각, API 불필요)
-function getLocalGPSRoutes(curChord, chords, selGenre, levelDef) {
+function getLocalGPSRoutes(curChord, chords, selGenre, levelDef, mode) {
   const degIdx = chords.findIndex(c => c.note === curChord.note);
   if (degIdx < 0) return [];
 
@@ -155,7 +157,7 @@ function getLocalGPSRoutes(curChord, chords, selGenre, levelDef) {
       const routeChords = remaining.slice(0, 4).map(di => {
         const ch = chords[di];
         if (!ch) return null;
-        return ch.note + getLevelSuffixStatic(ch.quality, di, levelDef);
+        return ch.note + getLevelSuffixStatic(ch.quality, di, levelDef, mode);
       }).filter(Boolean);
 
       if (routeChords.length >= 2) {
@@ -481,8 +483,9 @@ export default function ChordsTab({ onTranspose }) {
   function getLevelSuffix(quality, degIdx) {
     if (quality === 'dim') return levelDef.dim;
     if (quality === 'min') return levelDef.min;
-    // V도 (인덱스 4) = 도미넌트
-    if (degIdx === 4) return levelDef.V;
+    // 도미넌트 7화음 위치: 장조는 V(4), 자연단조는 VII(6)
+    const domIdx = selMode === 'minor' ? 6 : 4;
+    if (degIdx === domIdx) return levelDef.V;
     return levelDef.maj;
   }
 
@@ -567,7 +570,7 @@ export default function ChordsTab({ onTranspose }) {
     if (!curChord) { setGpsRoutes([]); return; }
 
     // 규칙 기반 루트는 즉각 표시
-    const localRoutes = getLocalGPSRoutes(curChord, chords, selGenre, levelDef);
+    const localRoutes = getLocalGPSRoutes(curChord, chords, selGenre, levelDef, selMode);
     setGpsRoutes(localRoutes);
 
     // API 키 + 프리미엄 있으면 AI 루트로 교체 (debounce)
@@ -1303,7 +1306,7 @@ export default function ChordsTab({ onTranspose }) {
               return (
                 <React.Fragment key={i}>
                   {i > 0 && <Text style={styles.infoText}> · </Text>}
-                  <Text style={[styles.infoText, i === 0 && styles.rootTone, isOmitted && styles.omittedTone]}>{t}</Text>
+                  <Text style={[styles.infoText, i === 0 && styles.rootTone, isOmitted && styles.omittedTone]}>{flatNote(t, activeKey, selMode)}</Text>
                 </React.Fragment>
               );
             })}
@@ -1570,9 +1573,9 @@ const styles = StyleSheet.create({
   bpmBigAdj:        { paddingHorizontal: 6 },
   bpmBigAdjTxt:     { fontSize: 18, color: COLORS.accent, fontWeight: '700' },
   histEmptyTxt:   { fontSize: 11, color: COLORS.text2, textAlign: 'center', paddingVertical: 8 },
-  measuresRow:        { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start' },
+  measuresRow:        { flexDirection: 'column', alignItems: 'stretch' },
   measureBlock:       { marginBottom: 4 },
-  measureBlockSep:    { borderLeftWidth: 1, borderLeftColor: COLORS.border, marginLeft: 8, paddingLeft: 8 },
+  measureBlockSep:    { borderTopWidth: 1, borderTopColor: COLORS.border, marginTop: 4, paddingTop: 6 },
   measureHeaderRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   measureLabel:       { fontSize: 9, color: COLORS.text2, letterSpacing: 1 },
   addMeasureBtn:      { paddingHorizontal: 6, paddingVertical: 1, borderWidth: 1, borderColor: COLORS.accent, borderRadius: 4 },

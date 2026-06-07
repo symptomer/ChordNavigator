@@ -7,18 +7,21 @@ import { useApp } from '../context/AppContext';
 import { usePurchase } from '../context/PurchaseContext';
 import { COLORS, GENRE_PROGS } from '../data/musicData';
 import { getChords } from '../utils/musicUtils';
+import Purchases from 'react-native-purchases';
+
+// AI 분석 백엔드 (Cloudflare Worker) — API 키는 서버에만, 앱엔 없음
+const WORKER_URL = 'https://chordnavigator-ai.symptomer.workers.dev';
 
 export default function AnalyzeTab() {
   const {
     activeKey, selMode, transKey, selKey,
-    progression, apiKey, setApiKey,
+    progression,
     selGenre, setSelGenre, selLevel, setSelLevel,
     playChord,
   } = useApp();
 
   const { isPremium, showPaywall } = usePurchase();
 
-  const [apiInput,  setApiInput]  = useState(apiKey);
   const [progInput, setProgInput] = useState('');
   const [loading,   setLoading]   = useState(false);
   const [results,   setResults]   = useState(null);
@@ -27,52 +30,35 @@ export default function AnalyzeTab() {
     setProgInput(progression.map(p => p.name).join(' '));
   }, [progression]);
 
-  async function saveKey() {
-    await setApiKey(apiInput.trim());
-    Alert.alert(apiInput.trim() ? 'API 키 저장됨' : 'API 키 삭제됨');
-  }
-
   async function runAI() {
     if (!isPremium) { showPaywall(); return; }
     if (!progInput.trim()) { Alert.alert('코드를 입력하세요'); return; }
-    if (!apiKey)            { Alert.alert('API 키를 먼저 입력하세요'); return; }
     setLoading(true); setResults(null);
 
-    const levelMap = {
-      beginner: '입문 (기본 코드 유지)',
-      mid:      '중급 (7th, 텐션 추가)',
-      jazz:     '재즈 (리하모니제이션, 트리톤 대리)',
-    };
-    const prompt = `음악 코드 진행 분석 전문가야. 다음 코드 진행을 분석하고 추천해줘.
-
-코드 진행: ${progInput}
-장르: ${GENRE_PROGS[selGenre]?.name}
-레벨: ${levelMap[selLevel]}
-기준 키: ${activeKey} ${selMode === 'major' ? '장조' : '단조'}
-
-다음 4가지를 JSON으로 응답해줘. 다른 텍스트 없이 JSON만:
-{"analysis":"원본 진행 분석 (2문장)","genre_version":{"chords":"코드1 코드2 ...","desc":"장르 특성 설명"},"level_version":{"chords":"코드1 코드2 ...","desc":"레벨 설명"},"substitute_version":{"chords":"코드1 코드2 ...","desc":"대리코드 설명"}}`;
+    const levelMap = { beginner: '입문', mid: '중급', jazz: '재즈' };
 
     try {
-      const res  = await fetch('https://api.anthropic.com/v1/messages', {
+      const appUserId = await Purchases.getAppUserID();
+      const res  = await fetch(WORKER_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model:      'claude-sonnet-4-20250514',
-          max_tokens: 800,
-          messages:   [{ role: 'user', content: prompt }],
+          appUserId,
+          progression: progInput,
+          genre: GENRE_PROGS[selGenre]?.name,
+          level: levelMap[selLevel],
+          key:   activeKey,
+          mode:  selMode,
         }),
       });
       const data = await res.json();
-      if (data.error) throw new Error(data.error.message);
-      const text = data.content[0].text;
-      const json = JSON.parse(text.replace(/```json|```/g, '').trim());
-      setResults({ type: 'ai', original: progInput, json });
+      if (data.error === 'not_premium') { showPaywall(); return; }
+      if (data.error === 'rate_limited') {
+        Alert.alert('오늘 AI 분석 사용량을 다 썼어요', '내일 다시 시도하거나 규칙 기반 분석을 사용하세요');
+        return;
+      }
+      if (data.error) throw new Error(data.message || data.error);
+      setResults({ type: 'ai', original: progInput, json: data });
     } catch (e) {
       Alert.alert('AI 분석 실패', e.message + '\n\n규칙 기반 분석을 사용해보세요');
     } finally { setLoading(false); }
@@ -136,23 +122,6 @@ export default function AnalyzeTab() {
 
   return (
     <ScrollView style={styles.wrap} contentContainerStyle={{ paddingBottom: 20 }}>
-      {/* API Key */}
-      <View style={styles.apiBox}>
-        <Text style={styles.label}>Claude API 키</Text>
-        <TextInput
-          style={styles.apiInput}
-          value={apiInput}
-          onChangeText={setApiInput}
-          placeholder="sk-ant-api03-..."
-          placeholderTextColor={COLORS.text2}
-          secureTextEntry
-          autoCapitalize="none"
-        />
-        <TouchableOpacity style={styles.smBtn} onPress={saveKey}>
-          <Text style={styles.smBtnText}>저장</Text>
-        </TouchableOpacity>
-      </View>
-
       {/* Prog input */}
       <Text style={styles.label}>코드 진행 입력</Text>
       <TextInput
@@ -196,7 +165,7 @@ export default function AnalyzeTab() {
 
       {/* Buttons */}
       <TouchableOpacity style={[styles.fullBtn, { backgroundColor: COLORS.purple }]} onPress={runAI}>
-        <Text style={styles.fullBtnText}>{isPremium ? '✦ AI 분석 (Claude)' : '🔒 AI 분석 (프리미엄)'}</Text>
+        <Text style={styles.fullBtnText}>{isPremium ? '✦ AI 분석' : '🔒 AI 분석 (프리미엄)'}</Text>
       </TouchableOpacity>
       <TouchableOpacity style={[styles.fullBtn, { backgroundColor: COLORS.bg3 }]} onPress={runLocal}>
         <Text style={styles.fullBtnText}>⚙ 규칙 기반 분석 (API 없이)</Text>

@@ -12,11 +12,15 @@ export function usesFlatDisplay(key, mode) {
 
 // 코드명 표시용: 'A#m7' → 'Bbm7' (flat 키에서만)
 export function flatChordName(name, key, mode) {
-  if (!name || !usesFlatDisplay(key, mode)) return name;
-  for (const [sharp, flat] of Object.entries(TO_FLAT)) {
-    if (name.startsWith(sharp)) return flat + name.slice(sharp.length);
+  if (!name) return name;
+  let out = name;
+  if (usesFlatDisplay(key, mode)) {
+    for (const [sharp, flat] of Object.entries(TO_FLAT)) {
+      if (out.startsWith(sharp)) { out = flat + out.slice(sharp.length); break; }
+    }
   }
-  return name;
+  // 반감화음 기호 ø7 → m7♭5 (0과 헷갈리지 않게 표시용으로만 변환, 데이터 키는 ø7 유지)
+  return out.replace('ø7', 'm7♭5');
 }
 
 // 슬래시 코드 포함 전체 코드명 표시: 'Am/D#' → flat 키에서 'Am/Eb'
@@ -75,9 +79,15 @@ export function chordNameToNote(name) {
 }
 
 export function chordNameToQuality(name) {
+  // 반감화음(ø)·감화음(°)을 먼저 dim으로 분류 (그 다음 m / maj 판정)
+  if (name.includes('ø') || name.includes('°')) return 'dim';
   if (name.includes('m') && !name.includes('maj')) return 'min';
-  if (name.includes('°')) return 'dim';
   return 'maj';
+}
+
+// 표시용 단일 음 플랫 변환: flat 표기 키에서 A# → Bb 등 (데이터/매칭엔 영향 없음)
+export function flatNote(note, key, mode) {
+  return usesFlatDisplay(key, mode) ? (TO_FLAT[note] || note) : note;
 }
 
 // 코드 이름과 루트 노트로부터 variant 키 추출

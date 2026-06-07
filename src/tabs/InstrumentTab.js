@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { COLORS, VAR_IV } from '../data/musicData';
-import { getChordTones, ki, getVariantKey, getGuitarShapes, chordNameToNote, displayChordName, TO_FLAT, usesFlatDisplay } from '../utils/musicUtils';
+import { getChordTones, ki, getVariantKey, getGuitarShapes, chordNameToNote, displayChordName, TO_FLAT, usesFlatDisplay, flatNote } from '../utils/musicUtils';
 import GuitarDiagram from '../components/GuitarDiagram';
 import PianoDiagram  from '../components/PianoDiagram';
 
@@ -115,7 +115,7 @@ export default function InstrumentTab() {
                 slashBass={slashBass}
               />
               <Text style={styles.tonesText}>
-                구성음: {getChordTones(pianoRoot, curVar, curChord.quality).join(' · ')}
+                구성음: {getChordTones(pianoRoot, curVar, curChord.quality).map(n => flatNote(n, activeKey, selMode)).join(' · ')}
               </Text>
               <Text style={styles.invHint}>
                 {hasSlash

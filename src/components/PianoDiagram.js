@@ -1,7 +1,8 @@
 import React from 'react';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
 import { COLORS, NOTES } from '../data/musicData';
-import { ki } from '../utils/musicUtils';
+import { ki, flatNote } from '../utils/musicUtils';
+import { useApp } from '../context/AppContext';
 
 const W = 300, H = 150;
 
@@ -183,6 +184,8 @@ const RH_BLACK  = '#a8881e';
 // rootNote + chordIntervals: 전위/슬래시 코드 모드
 // activeNotes Set: 스케일 모드
 export default function PianoDiagram({ activeNotes, name, rootNote, chordIntervals, inversion = 0, slashBass }) {
+  const { activeKey, selMode } = useApp();
+  const fn = (n) => (n ? flatNote(n, activeKey, selMode) : n); // 표시용 플랫 변환 (검은건반 A#→Bb 등)
   const isChordMode = !!(rootNote && chordIntervals && chordIntervals.length);
 
   let lhStSet   = new Set();
@@ -282,7 +285,7 @@ export default function PianoDiagram({ activeNotes, name, rootNote, chordInterva
                 x={SX + after * WW + WW - 7 + 7} y={SY + BH - 5}
                 textAnchor="middle"
                 fill="#fff" fontSize={6} fontWeight="bold">
-                {note}
+                {fn(note)}
               </SvgText>
             )}
           </React.Fragment>

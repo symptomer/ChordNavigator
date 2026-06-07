@@ -1,9 +1,84 @@
 # ChordNavigator — 다음 세션 작업 계획
 
 **프로젝트 경로:** `/Users/symptomer/Documents/ChordNavigator`
-**최근 작업:** 2026-06-04 세션 (5차) — 4차 반려 원인 진단 + 코드 수정
+**최근 작업:** 2026-06-06 세션 (7차) — 🎉 App Store 출시 완료 + 버그 수정 + AI 백엔드(Cloudflare Worker+Gemini) 구축
 **현재 브랜치:** main
 **GitHub:** https://github.com/symptomer/ChordNavigator
+
+---
+
+## 🚀 2026-06-06 (7차) — 출시 완료 + 1.0.1 준비 + AI 백엔드 전환
+
+### ✅ 앱 출시됨!
+- **App Store 정식 출시 완료** (5차 재심사 통과). 앱+IAP(월간 ₩1,900/평생 ₩8,800) 모두 "승인됨", 판매 중.
+- 판매자명은 개인계정이라 **"DOSEONG KANG"** 으로 표시됨. 브랜드명("symptomer")으로 바꾸려면 조직(Organization) 계정 전환 필요(DUNS 번호 + Apple 지원 문의) — 급하지 않아 보류.
+
+### ✅ 코드 수정 (전부 미커밋 — 다음 1.0.1 빌드에 반영 필요)
+음악 이론/UX 버그를 영상·스크린샷 보고 수정함:
+1. **자연단조 VII: Cmaj7 → C7** (도미넌트). `ChordsTab.js`의 `getLevelSuffix`/`getLevelSuffixStatic`에 `domIdx = mode==='minor'?6:4` 추가
+2. **반감화음 ø7 → m7♭5 표시** ("E07"처럼 보이던 것). `musicUtils.js` `flatChordName`에서 `.replace('ø7','m7♭5')` (데이터 키는 ø7 유지)
+3. **구성음 철자 A# → B♭** (플랫 키에서). `musicUtils.js`에 `flatNote(note,key,mode)` 추가 → ChordsTab·InstrumentTab·GuitarDiagram·PianoDiagram 표시에 적용 (논리비교는 원본 샤프 유지)
+4. **반감화음 분류 버그**: `chordNameToQuality`가 'ø'를 'maj'로 분류하던 것 → 'dim'으로 (ø/° 먼저 판정)
+5. **마디 코드 우측 정렬**: `ChordsTab.js` 스타일 `measuresRow` `row+wrap` → `column`(리드시트처럼 마디 세로 쌓기, 마디 안 코드는 가로). `measureBlockSep`도 좌측 보더 → 상단 보더
+6. **AI 분석 백엔드 전환** (아래 별도 섹션) — `AnalyzeTab.js` 대폭 수정
+
+### 🤖 AI 분석 = Cloudflare Worker + Google Gemini (완성·배포됨)
+**왜:** 기존엔 앱이 사용자더러 Anthropic API 키를 직접 넣게 했음 → ① 결제 모순(구독했는데 또 키 필요) ② App Store 3.1.1 리스크 ③ 키 노출. **A안(백엔드 프록시)** 으로 전환.
+**Anthropic 결제가 한국 카드로 계속 막혀서**(버튼 비활성, 카드 4장·브라우저 3개 다 실패 — Stripe 차단 추정) → **Google Gemini 무료 등급으로 우회**.
+
+- **위치:** `server/` 폴더 (Cloudflare Worker, TypeScript, raw fetch)
+- **배포됨:** `https://chordnavigator-ai.symptomer.workers.dev` (Cloudflare 계정 symptomers@naver.com)
+- **동작:** 앱 → Worker → Gemini. Worker가 ① RevenueCat REST(`/v1/subscribers`)로 프리미엄 검증 ② KV 일일 50회 제한 ③ Gemini(`gemini-2.0-flash`) 구조화 JSON 호출
+- **시크릿(Worker에만):** `GEMINI_API_KEY`(aistudio.google.com 무료키), `REVENUECAT_API_KEY`(공개키 `appl_DRgqJLXRysIFcMwTWEBCqaImUxh`)
+- **KV id:** `4aad11ed0f3a4457afa6970e1507dc6e` (binding RATE_LIMIT)
+- **검증 완료:** curl 테스트로 빈요청→400, 가짜유저→403 not_premium 확인. (Gemini 실호출은 실제 프리미엄 유저만 가능)
+- **앱 쪽(`AnalyzeTab.js`):** API 키 입력 UI 제거, `Purchases.getAppUserID()`로 appUserId 보내서 `WORKER_URL` 호출. `not_premium`→페이월, `rate_limited`→안내. **프리미엄 유저는 "분석" 버튼만 누르면 됨.**
+- 배포/운영 가이드: `server/README.md`. 모델/한도 변경은 `server/wrangler.toml`(`GEMINI_MODEL`,`DAILY_LIMIT`).
+
+### ⏭️ 다음 세션 할 일 (이 순서로)
+1. **커밋** — `server/` 폴더 + 위 앱 수정 전체 (main에 직접 커밋해온 패턴)
+2. **ASO 개선 (1.0.1에 같이)** — 부제 `코드 진행 분석·기타 피아노 운지·작곡`, 키워드 100자 `코드,코드진행,기타코드,피아노코드,코드분석,화성학,음악이론,작곡,스케일,운지,코드표,반주,재즈,통기타,건반,화음`, 설명문(차별점 강조: "남의 곡 따라치기 아님, 코드 이해·작곡") — 출시판이라 잠김, **새 버전 빌드 때 적용**
+   - 프로모션 텍스트는 이미 1.0(라이브)에 "첫 달 무료!..." 로 적용 완료 (심사 불필요 항목)
+3. **EAS 1.0.1 빌드** — `eas build --platform ios --profile production --non-interactive --no-wait` (autoIncrement, appVersionSource remote)
+4. **재심사 제출** — App Store Connect: 버전 1.0.1 생성 → 새 빌드 연결 → ASO/설명 입력 → 제출. (참고: 기능 변화 없는 빈 업데이트 아님 — 버그 수정 다수 + AI 백엔드)
+
+### ℹ️ 경쟁/포지셔닝 (마케팅 메모)
+- 비슷한 앱: Chord ai/Capo/Chordify(곡→코드 오디오 인식), Autochords/Tonaly(진행 생성). **차별점: 입력→이해·분석 중심 + 한국어 + 장르별 탐색 + 기타·피아노 동시.** "따라치기 아니라 이해/작곡" + "한국어 화성학"으로 포지셔닝.
+
+### ⚠️ 메모
+- **Anthropic API 결제는 끝내 안 됐음** — 지원팀(support@anthropic.com)에 문의 메일 보냄(결제 버튼 비활성). 답 오면 참고만. **현재 AI는 Gemini라 Anthropic 불필요.**
+- Worker의 옛 `ANTHROPIC_API_KEY` 시크릿은 미사용(무해, 그냥 둠).
+- 출시 직후 IAP 전파 지연으로 본인/친구 폰에서 구독 버튼이 잠깐 안 떴음 — 정상(몇 시간~24h). 시간 지나면 해결.
+
+---
+
+## 🟢 2026-06-04 (6차) — RevenueCat 정비 + 빌드
+
+### ✅ 완료
+1. **App Store 스토어에 monthly 상품 추가** — `com.symptomer.chordnavigator.monthly` (RC product id `prodaa3781cdfc`), entitlement `ChordNavigator Pro` 연결
+2. **offering 패키지를 App Store 상품으로 교체** (RC REST API v2 사용, secret key로 detach/attach)
+   - Monthly(`$rc_monthly`) → App Store `com.symptomer.chordnavigator.monthly` ✅
+   - Lifetime(`$rc_lifetime`) → App Store `com.symptomer.chordnavigator.lifetime` (`prodc53571f0be`) ✅
+   - Yearly(`$rc_annual`)는 여전히 Test Store(코드 미사용이라 무관)
+   - **근본 원인(Test Store 상품이 offering에 물려 있던 것) 해소됨**
+3. **코드 커밋** (f5a29fc) — entitlement 키 수정 + 누적 작업 전체 커밋
+4. **EAS production 빌드 시작** — Build ID `b75fd58c-9f00-48c0-8a60-f33754671e25`, v1.0.0 / **build number 12**
+   - 로그: https://expo.dev/accounts/symptomer/projects/ChordNavigator/builds/b75fd58c-9f00-48c0-8a60-f33754671e25
+
+### ⚠️ 보안 메모
+- RevenueCat secret API key(`claude-api`, `sk_...`)를 6차 작업에 사용함 → **사용 후 삭제 권장** (RevenueCat → API keys → claude-api 삭제)
+
+### ✅ 추가 완료 (6차 연장)
+5. **TestFlight 업로드** — build #12 처리 완료, 실기기 설치
+6. **실기기 결제 검증** — 페이월에서 상품 표시 + 구매 → 프리미엄 잠금 해제 성공 (반려 원인 해결 입증). 가격은 한국 ₩1,900/₩8,800 = 미국 $0.99/$4.99 티어로 정상(샌드박스 미국 계정이라 USD 표시됐던 것)
+7. **🔑 결정적 원인 추가 발견 + 수정**: 반려된 심사 제출 건(`9cb007a7...`)의 버전에 **옛 버그 빌드 #11이 연결돼 있었음** → **빌드 #12로 교체 + 저장** (이게 진짜 재반려 방지 핵심)
+8. **심사 노트 작성** — 앱 심사 정보 메모에 IAP 수정 내용 + 샌드박스 테스트 방법 영문 기재
+9. **✅ 재심사 제출 완료 (5차 심사)** — 2026-06-05, build 1.0.0 **(12)**, 상태 **"심사 대기 중"(Waiting for Review)**. Submission ID `9cb007a7-6088-4ab7-9902-50f2620ded71`
+
+### ⏭️ 남은 일
+- **Apple 심사 결과 대기** (보통 24~48시간, 이메일 통보)
+- 통과 시: 자동 출시 설정돼 있음 → App Store 공개
+- 만약 또 반려되면: 반려 메시지 확인 후 대응 (이번엔 빌드/IAP/entitlement 모두 정상이라 통과 가능성 높음)
 
 ---
 

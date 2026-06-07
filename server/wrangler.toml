@@ -1,0 +1,18 @@
+name = "chordnavigator-ai"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+# 일일 호출 카운터 저장용 KV. 아래 id는 `wrangler kv namespace create RATE_LIMIT` 출력값으로 교체.
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "4aad11ed0f3a4457afa6970e1507dc6e"
+
+[vars]
+ENTITLEMENT_ID = "ChordNavigator Pro"
+DAILY_LIMIT = "50"
+GEMINI_MODEL = "gemini-2.0-flash"
+
+# 시크릿(아래)은 wrangler secret put 으로 등록 — 절대 이 파일에 적지 말 것:
+#   wrangler secret put GEMINI_API_KEY
+#   wrangler secret put REVENUECAT_API_KEY

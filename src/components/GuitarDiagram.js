@@ -2,7 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Line, Circle, Rect, Text as SvgText } from 'react-native-svg';
 import { COLORS, NOTES } from '../data/musicData';
-import { getChordTones } from '../utils/musicUtils';
+import { getChordTones, flatNote } from '../utils/musicUtils';
+import { useApp } from '../context/AppContext';
 
 // 가로 방향 기타 다이어그램
 // 저음 E줄 = 하단, 고음 e줄 = 상단
@@ -56,6 +57,8 @@ function getNoteAt(stringIdx, fret) {
 }
 
 export default function GuitarDiagram({ shape, name, displayName, posLabel, slashBass }) {
+  const { activeKey, selMode } = useApp();
+  const fn = (n) => (n ? flatNote(n, activeKey, selMode) : n); // 표시용 플랫 변환
   if (!shape) {
     return (
       <View style={styles.empty}>
@@ -146,7 +149,7 @@ export default function GuitarDiagram({ shape, name, displayName, posLabel, slas
                 dominantBaseline="middle"
                 fill={isHighlight ? '#111' : openColor}
                 fontSize={noteName && noteName.length > 1 ? 6 : 8} fontWeight={openWeight}>
-                {noteName || ''}
+                {fn(noteName) || ''}
               </SvgText>
             </React.Fragment>
           );
@@ -163,7 +166,7 @@ export default function GuitarDiagram({ shape, name, displayName, posLabel, slas
             <SvgText x={x} y={y} textAnchor="middle"
               dominantBaseline="middle" fill={textFill}
               fontSize={fontSize} fontWeight="bold">
-              {noteName || ''}
+              {fn(noteName) || ''}
             </SvgText>
           </React.Fragment>
         );
@@ -202,7 +205,7 @@ export default function GuitarDiagram({ shape, name, displayName, posLabel, slas
                     fill={present ? '#111' : '#888'}
                     fontSize={fSize}
                     fontWeight={present ? 'bold' : 'normal'}>
-                    {tone}
+                    {fn(tone)}
                   </SvgText>
                 </React.Fragment>
               );
