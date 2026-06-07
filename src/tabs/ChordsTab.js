@@ -7,7 +7,8 @@ import { useApp } from '../context/AppContext';
 import { usePurchase } from '../context/PurchaseContext';
 import { COLORS, LEVEL_DEFAULT, LEVEL_VARS, NOTES, GENRE_PROGS, VAR_IV } from '../data/musicData';
 import { getChords, getChordTones, getSubstitutes, ki, getGuitarShapes, getVariantKey, flatChordName, displayChordName,
-         chordNameToNote, chordNameToQuality, chordNameToVariant, TO_FLAT, usesFlatDisplay, flatNote } from '../utils/musicUtils';
+         chordNameToNote, chordNameToQuality, chordNameToVariant, TO_FLAT, usesFlatDisplay, flatNote,
+         pianoVoicingMidis, voiceLeadSequence, pianoVoiceLeadSequence } from '../utils/musicUtils';
 import { exportMIDI } from '../utils/midiUtils';
 import { SONG_PATTERNS } from '../data/songPatterns';
 import GuitarDiagram from '../components/GuitarDiagram';
@@ -246,6 +247,24 @@ JSON만 응답:
   return JSON.parse(text).routes;
 }
 
+// 코드 품질 → 인터벌 (보이스리딩 운지용)
+const QUAL_IV = { maj: [0, 4, 7], min: [0, 3, 7], dim: [0, 3, 6] };
+
+// 기법 시퀀스 items 에 보이스리딩 기타 운지(gShape)를 붙임.
+// specs: items와 같은 길이의 [{pcs,bassPc,rootPc}] (음 이어짐·연주가능 운지 계산용)
+// 기타 보이스리딩 운지(gShape) 부착. withPiano=true면 피아노 오디오용 pShape도 부착
+// (피아노 다이어그램은 라벨 정확성 위해 getSlashBassKeys 사용 — pShape는 베이스가 C 아래로
+//  내려가야 하는 베이스하강 오디오에만 필요)
+function attachVoiceLed(items, specs, withPiano) {
+  if (!items || items.length !== specs.length) return;
+  const shapes = voiceLeadSequence(specs);
+  if (shapes) items.forEach((it, i) => { if (shapes[i]) it.gShape = shapes[i]; });
+  if (withPiano) {
+    const pkeys = pianoVoiceLeadSequence(specs);
+    if (pkeys) items.forEach((it, i) => { if (pkeys[i]) it.pShape = pkeys[i]; });
+  }
+}
+
 // ── 기법 제안 계산 ─────────────────────────────────────────────
 function getTechniques(curChord, chords, key, mode) {
   if (!curChord) return [];
@@ -275,27 +294,43 @@ function getTechniques(curChord, chords, key, mode) {
   // 2. 클리셰 — 7음 반음 하강
   const n = curChord.note;
   if (curChord.quality === 'maj') {
+    const items = [
+      { label: n,          note: n, quality: 'maj', hint: '원코드' },
+      { label: n + 'maj7', note: n, quality: 'maj', hint: '7↓' },
+      { label: n + '7',    note: n, quality: 'maj', hint: '♭7↓' },
+      { label: n + '6',    note: n, quality: 'maj', hint: '6↓' },
+    ];
+    const t = [r, (r + 4) % 12, (r + 7) % 12]; // 유지 트라이어드
+    attachVoiceLed(items, [
+      { pcs: t,                    bassPc: r, rootPc: r },
+      { pcs: [...t, (r + 11) % 12], bassPc: r, rootPc: r },
+      { pcs: [...t, (r + 10) % 12], bassPc: r, rootPc: r },
+      { pcs: [...t, (r + 9) % 12],  bassPc: r, rootPc: r },
+    ]);
     groups.push({
       type: '클리셰',
       desc: `7음 하강 · ${n} → ${n}maj7 → ${n}7 → ${n}6`,
-      items: [
-        { label: n,          note: n, quality: 'maj', hint: '원코드' },
-        { label: n + 'maj7', note: n, quality: 'maj', hint: '7↓' },
-        { label: n + '7',    note: n, quality: 'maj', hint: '♭7↓' },
-        { label: n + '6',    note: n, quality: 'maj', hint: '6↓' },
-      ],
+      items,
       useAll: true,
     });
   } else if (curChord.quality === 'min') {
+    const items = [
+      { label: n + 'm',   note: n, quality: 'min', hint: '원코드' },
+      { label: n + 'mMaj7', note: n, quality: 'min', hint: '7↓' },
+      { label: n + 'm7',  note: n, quality: 'min', hint: '♭7↓' },
+      { label: n + 'm6',  note: n, quality: 'min', hint: '6↓' },
+    ];
+    const t = [r, (r + 3) % 12, (r + 7) % 12];
+    attachVoiceLed(items, [
+      { pcs: t,                    bassPc: r, rootPc: r },
+      { pcs: [...t, (r + 11) % 12], bassPc: r, rootPc: r },
+      { pcs: [...t, (r + 10) % 12], bassPc: r, rootPc: r },
+      { pcs: [...t, (r + 9) % 12],  bassPc: r, rootPc: r },
+    ]);
     groups.push({
       type: '클리셰',
       desc: `7음 하강 · ${n}m → ${n}mMaj7 → ${n}m7 → ${n}m6`,
-      items: [
-        { label: n + 'm',   note: n, quality: 'min', hint: '원코드' },
-        { label: n + 'mMaj7', note: n, quality: 'min', hint: '7↓' },
-        { label: n + 'm7',  note: n, quality: 'min', hint: '♭7↓' },
-        { label: n + 'm6',  note: n, quality: 'min', hint: '6↓' },
-      ],
+      items,
       useAll: true,
     });
   }
@@ -306,33 +341,51 @@ function getTechniques(curChord, chords, key, mode) {
     const b6 = NOTES[(r + 9)  % 12];
     const b5 = NOTES[(r + 7)  % 12];
     const vi = chords[5];
+    const items = [
+      { label: n,                              note: n,        quality: 'maj', hint: '루트' },
+      { label: `${n}maj7/${b7}`,               note: n,        quality: 'maj', hint: `/${b7}` },
+      { label: vi ? vi.name : '?',             note: vi?.note, quality: 'min', hint: `/${b6}` },
+      { label: vi ? `${vi.name}7/${b5}` : '?', note: vi?.note, quality: 'min', hint: `/${b5}` },
+    ].filter(i => i.note);
+    if (vi && items.length === 4) {
+      const vR = ki(vi.note);
+      attachVoiceLed(items, [
+        { pcs: [r, (r + 4) % 12, (r + 7) % 12],               bassPc: r,            rootPc: r },
+        { pcs: [r, (r + 4) % 12, (r + 7) % 12, (r + 11) % 12], bassPc: (r + 11) % 12, rootPc: r },
+        { pcs: [vR, (vR + 3) % 12, (vR + 7) % 12],             bassPc: (r + 9) % 12,  rootPc: vR },
+        { pcs: [vR, (vR + 3) % 12, (vR + 7) % 12, (vR + 10) % 12], bassPc: (r + 7) % 12, rootPc: vR },
+      ], true); // 베이스하강: 피아노 오디오 베이스가 C 아래로 하강해야 하므로 pShape 부착
+    }
     groups.push({
       type: '베이스 하강',
       desc: `${n} → ${n}maj7 → ${vi?.name || '?'} → ${vi?.name || '?'}7`,
-      items: [
-        { label: n,                        note: n,        quality: 'maj', hint: '루트' },
-        { label: n + 'maj7',               note: n,        quality: 'maj', hint: `/${b7}` },
-        { label: vi ? vi.name : '?',       note: vi?.note, quality: 'min', hint: `/${b6}` },
-        { label: vi ? vi.name + '7' : '?', note: vi?.note, quality: 'min', hint: `/${b5}` },
-      ].filter(i => i.note),
+      items,
       useAll: true,
     });
   }
 
   // 4. 페달 포인트
   const pedNote  = curChord.note;
-  const pedItems = [degIdx, 3, 4, 5, 1]
+  const pedP     = ki(pedNote);
+  const pedDis   = [degIdx, 3, 4, 5, 1]
     .filter((di, i, arr) => arr.indexOf(di) === i && chords[di])
-    .slice(0, 4)
-    .map(di => {
-      const ch = chords[di];
-      return {
-        label:   di === degIdx ? ch.note : `${ch.note}/${pedNote}`,
-        note:    di === degIdx ? ch.note : pedNote,   // 슬래시 항목: context는 페달음
-        quality: ch.quality,                           // 인터벌 계산용 상위코드 quality 보존
-        hint:    di === degIdx ? '페달 루트' : `/${pedNote}`,
-      };
-    });
+    .slice(0, 4);
+  const pedItems = pedDis.map(di => {
+    const ch = chords[di];
+    return {
+      label:   di === degIdx ? ch.name : `${ch.name}/${pedNote}`,   // 상위코드 품질 포함 (Dm/A 등)
+      note:    di === degIdx ? ch.note : pedNote,   // 슬래시 항목: context는 페달음
+      quality: ch.quality,                           // 인터벌 계산용 상위코드 quality 보존
+      hint:    di === degIdx ? '페달 루트' : `/${pedNote}`,
+    };
+  });
+  // 페달음(P)을 베이스로 유지하며 상성부만 보이스리딩
+  attachVoiceLed(pedItems, pedDis.map(di => {
+    const ch = chords[di];
+    const uR = ki(ch.note);
+    const iv = QUAL_IV[ch.quality] || [0, 4, 7];
+    return { pcs: iv.map(x => (uR + x) % 12), bassPc: pedP, rootPc: uR };
+  }));
   groups.push({
     type: '페달 포인트',
     desc: `${pedNote}음을 유지하며 상성부만 진행`,
@@ -440,12 +493,65 @@ function getTechniques(curChord, chords, key, mode) {
   return groups;
 }
 
+// 기법 아이템 라벨 → 실제 재생/진행용 (root·quality·variant·bass) 파싱
+// 클리셰: 'Cmaj7' → variant 'maj7' (소리도 maj7) / 페달 슬래시: 'Dm/A' → root D, bass A
+// item.note/item.quality 를 그대로 쓰면 클리셰는 전부 같은 3화음, 페달은 베이스음을 루트로
+// 잘못 울리므로 반드시 이 함수로 라벨을 재파싱해서 재생/저장해야 한다.
+function resolveTechItem(item) {
+  const label     = item.label || '';
+  const slashIdx  = label.indexOf('/');
+  const chordPart = slashIdx >= 0 ? label.slice(0, slashIdx) : label;
+  const root      = slashIdx >= 0 ? chordNameToNote(chordPart) : item.note;
+  const quality   = slashIdx >= 0 ? chordNameToQuality(chordPart) : item.quality;
+  const variant   = chordNameToVariant(chordPart, root);
+  const bass      = slashIdx >= 0 ? label.slice(slashIdx + 1) : null;
+  return { root, quality, variant, bass };
+}
+
+// 개방현 MIDI: 저음E…고음e (GuitarDiagram의 OPEN_PITCH와 동일 피치클래스)
+const GUITAR_BASE = [40, 45, 50, 55, 59, 64];
+
+// 화면에 표시되는 운지(기타 shape / 피아노 건반)를 그대로 발음할 MIDI 배열(저음→고음).
+// 소리=그림 보장. shape가 없으면 null → 호출부에서 기존 playChord로 폴백.
+function displayedVoicingMidis(chord, variant, instr, shapeIdx = 0) {
+  if (!chord || (!chord.note && !chord.name)) return null;
+
+  if (instr === 'guitar') {
+    // 기법 보이스리딩 운지가 지정돼 있으면 그대로 사용 (소리=그림, 음 이어짐)
+    let shape = (chord.shape && chord.shape.frets) ? chord.shape : null;
+    if (!shape) {
+      const shapes = getGuitarShapes(chord.name, chord.note, chord.quality, variant || '');
+      if (!shapes.length) return null;
+      shape = shapes[Math.min(shapeIdx, shapes.length - 1)] || shapes[0];
+    }
+    if (!shape) return null;
+    const midis = [];
+    shape.frets.forEach((f, i) => { if (f >= 0) midis.push(GUITAR_BASE[i] + f); });
+    return midis.length ? midis : null;
+  }
+
+  // 피아노 — 기법 보이스리딩 운지가 지정돼 있으면 그 MIDI 사용 (베이스 하행/유지)
+  if (chord.pShape && chord.pShape.midis && chord.pShape.midis.length) return chord.pShape.midis;
+  // 슬래시면 코드 파트 기준으로 root/quality/variant + 베이스음 분리
+  const slashIdx  = chord.name ? chord.name.indexOf('/') : -1;
+  const hasSlash  = slashIdx >= 0;
+  const slashBass = hasSlash ? chord.name.slice(slashIdx + 1) : null;
+  const chordPart = hasSlash ? chord.name.slice(0, slashIdx) : null;
+  const root = hasSlash ? chordNameToNote(chordPart) : chord.note;
+  const qual = hasSlash ? chordNameToQuality(chordPart) : chord.quality;
+  const vrt  = hasSlash ? chordNameToVariant(chordPart, root) : (variant || '');
+  const vk   = getVariantKey(vrt, qual);
+  const ivs  = VAR_IV[vk] || (qual === 'min' ? [0, 3, 7] : [0, 4, 7]);
+  const midis = pianoVoicingMidis(root, ivs, slashBass, 0);
+  return midis && midis.length ? midis : null;
+}
+
 export default function ChordsTab({ onTranspose }) {
   const {
     activeKey, selMode, transKey, setTransKey,
     selKey, setSelKey, setSelMode,
     curChord, setCurChord, curVar, setCurVar,
-    progression, setProgression, playChord,
+    progression, setProgression, playChord, playVoicing,
     curInstr, setCurInstr, strumMode, setStrumMode,
     selLevel, selGenre,
     bpm, setBpm, vol,
@@ -460,10 +566,15 @@ export default function ChordsTab({ onTranspose }) {
   const gpsTimerRef    = useRef(null);
   const ivRef          = useRef(null);
   const playingRef     = useRef(false);
+  const lastPlayPosRef = useRef(-1);
   const playChordRef   = useRef(playChord);
+  const playVoicingRef = useRef(playVoicing);
+  const curInstrRef    = useRef(curInstr);
   const bpmRef         = useRef(bpm);
   const scrollRef      = useRef(null);
   useEffect(() => { playChordRef.current = playChord; }, [playChord]);
+  useEffect(() => { playVoicingRef.current = playVoicing; }, [playVoicing]);
+  useEffect(() => { curInstrRef.current = curInstr; }, [curInstr]);
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
   const [gpsRoutes,    setGpsRoutes]    = useState([]);
   const [gpsLoading,   setGpsLoading]   = useState(false);
@@ -607,31 +718,47 @@ export default function ChordsTab({ onTranspose }) {
     });
   }
 
+  // 화면에 표시되는 운지 그대로 발음 (소리=그림). shape 없으면 일반 코드 재생으로 폴백.
+  function playChordView(chord, variant, shapeIdx = 0, arpBeatMs) {
+    if (!chord) return;
+    const instr = curInstrRef.current;
+    const midis = displayedVoicingMidis(chord, variant, instr, shapeIdx);
+    if (midis && midis.length) { playVoicingRef.current(midis, arpBeatMs); return; }
+    // 폴백: 라벨에서 root/quality/variant/bass 파싱
+    const slashIdx = chord.name ? chord.name.indexOf('/') : -1;
+    if (slashIdx >= 0) {
+      const part = chord.name.slice(0, slashIdx);
+      const r = chordNameToNote(part);
+      playChordRef.current(r, chordNameToVariant(part, r), chordNameToQuality(part), arpBeatMs, chord.name.slice(slashIdx + 1));
+    } else {
+      playChordRef.current(chord.note, variant || '', chord.quality, arpBeatMs, null);
+    }
+  }
+
   // 히스토리 칩 탭 → 편집 커서를 해당 슬롯으로 이동
   function tapHistChip(p, i) {
     setEditIdx(i);
-    setCurChord({ name: p.name, note: p.note, quality: p.quality });
+    setCurChord({ name: p.name, note: p.note, quality: p.quality, shape: p.shape, pShape: p.pShape });
     setCurVar(p.variant || '');
-    playChord(p.note, p.variant || '', p.quality, 60000 / bpm);
+    setDiagPosIdx(0);
+    playChordView(p, p.variant || '', 0, 60000 / bpm);
   }
 
   function addTechChord(item) {
     if (!item?.note) return;
-    const slashIdx    = item.label ? item.label.indexOf('/') : -1;
-    const chordPart   = slashIdx >= 0 ? item.label.slice(0, slashIdx) : item.label;
     // 슬래시 코드: 상위코드 루트(F in F/C)에서 variant/재생/진행 파생
-    const upperRoot   = slashIdx >= 0 ? chordNameToNote(chordPart) : item.note;
-    const upperQual   = slashIdx >= 0 ? chordNameToQuality(chordPart) : item.quality;
-    const variant     = chordNameToVariant(chordPart, upperRoot);
+    const { root, quality, variant } = resolveTechItem(item);
     // curChord.note = item.note (페달/베이스음) → 기법제안·코드그리드 컨텍스트 유지
-    const chord = { name: item.label, note: item.note, quality: item.quality };
+    const chord = { name: item.label, note: item.note, quality: item.quality, shape: item.gShape, pShape: item.pShape };
     setCurChord(chord);
     setCurVar(variant);
-    playChord(upperRoot, variant, upperQual, 60000 / bpm);
-    // 진행에 추가: 재생·히스토리는 상위코드 기준
+    setDiagPosIdx(0);
+    // 화면에 뜰 운지(보이스리딩) 그대로 발음
+    playChordView(chord, variant, 0, 60000 / bpm);
+    // 진행에 추가: 재생·히스토리는 상위코드 기준 (+보이스리딩 운지 보존)
     setProgression(prev =>
       prev.length < maxProg
-        ? [...prev, { name: item.label, note: upperRoot, quality: upperQual, variant }]
+        ? [...prev, { name: item.label, note: root, quality, variant, shape: item.gShape, pShape: item.pShape }]
         : prev
     );
     // 다이어그램으로 자동 스크롤
@@ -648,18 +775,25 @@ export default function ChordsTab({ onTranspose }) {
       if (space <= 0) return prev;
       return [
         ...base,
-        ...items.slice(0, space).map(item => ({
-          name: item.label, note: item.note, quality: item.quality, variant: '',
-          ...(beatValue != null ? { beats: beatValue } : {}),
-        })),
+        ...items.slice(0, space).map(item => {
+          // 라벨 재파싱: 클리셰 variant(maj7/7/6 등)·페달 상위코드 루트를 정확히 저장
+          const { root, quality, variant } = resolveTechItem(item);
+          return {
+            name: item.label, note: root, quality, variant, shape: item.gShape, pShape: item.pShape,
+            ...(beatValue != null ? { beats: beatValue } : {}),
+          };
+        }),
       ];
     });
     // 마지막 추가 코드로 커서 이동
     const last = items[items.length - 1];
     if (last?.note) {
-      setCurChord({ name: last.label, note: last.note, quality: last.quality });
-      setCurVar('');
-      playChord(last.note, '', last.quality, 60000 / bpm);
+      const { variant } = resolveTechItem(last);
+      const chord = { name: last.label, note: last.note, quality: last.quality, shape: last.gShape, pShape: last.pShape };
+      setCurChord(chord);
+      setCurVar(variant);
+      setDiagPosIdx(0);
+      playChordView(chord, variant, 0, 60000 / bpm);
     }
   }
 
@@ -699,10 +833,20 @@ export default function ChordsTab({ onTranspose }) {
   }
 
   function stopPlay() {
+    const wasPlaying = playingRef.current;
     if (ivRef.current) clearTimeout(ivRef.current);
     ivRef.current = null;
     playingRef.current = false;
     setPlaying(false);
+    // 정지 시 마지막 연주 코드 운지를 그대로 유지 (사라지지 않게)
+    if (wasPlaying) {
+      const p = progression[lastPlayPosRef.current];
+      if (p) {
+        setCurChord({ name: p.name, note: p.note, quality: p.quality, shape: p.shape, pShape: p.pShape });
+        setCurVar(p.variant || '');
+        setDiagPosIdx(0);
+      }
+    }
     setPlayIdx(-1);
   }
 
@@ -719,7 +863,15 @@ export default function ChordsTab({ onTranspose }) {
       const pos    = idx % snap.length;
       const p      = snap[pos];
       const beatMs = 60000 / bpmRef.current;
-      playChordRef.current(p.note, p.variant, p.quality, beatMs);
+      lastPlayPosRef.current = pos;
+      // 화면에 표시되는 운지(shape 0)대로 발음 → 소리=그림
+      const midis = displayedVoicingMidis(p, p.variant, curInstrRef.current, 0);
+      if (midis && midis.length) {
+        playVoicingRef.current(midis, beatMs);
+      } else {
+        const bass = p.name && p.name.includes('/') ? p.name.split('/')[1] : null;
+        playChordRef.current(p.note, p.variant, p.quality, beatMs, bass);
+      }
       setPlayIdx(pos);
       idx++;
       ivRef.current = setTimeout(tick, (beats[pos] || 1) * (60000 / bpmRef.current));
@@ -787,8 +939,12 @@ export default function ChordsTab({ onTranspose }) {
   function playTechSequence(items) {
     items.forEach((item, i) => {
       setTimeout(() => {
+        if (!item?.note) return;
         const beatMs = 60000 / bpmRef.current;
-        if (item?.note) playChordRef.current(item.note, '', item.quality, beatMs);
+        // 화면에 뜰 운지(보이스리딩) 그대로 발음
+        const { variant } = resolveTechItem(item);
+        const chord = { name: item.label, note: item.note, quality: item.quality, shape: item.gShape, pShape: item.pShape };
+        playChordView(chord, variant, 0, beatMs);
       }, i * (60000 / bpmRef.current));
     });
   }
@@ -1032,38 +1188,160 @@ export default function ChordsTab({ onTranspose }) {
           <Text style={styles.histEmptyTxt}>코드를 선택하면 진행이 쌓입니다</Text>
         )}
 
-        {/* 재생 중 운지 */}
-        {playing && playIdx >= 0 && progression[playIdx] && (() => {
-          const pc     = progression[playIdx];
-          const shapes = getGuitarShapes(pc.name, pc.note, pc.quality, pc.variant);
-          const shape  = shapes[playShapeIdx] || shapes[0] || null;
-          const vk     = getVariantKey(pc.variant, pc.quality);
-          const pianoIvs = VAR_IV[vk] || (pc.quality === 'min' ? [0,3,7] : [0,4,7]);
-          const pcSlashIdx = pc.name ? pc.name.indexOf('/') : -1;
-          const pcHasSlash = pcSlashIdx >= 0;
-          const pcSlashBass = pcHasSlash ? pc.name.slice(pcSlashIdx + 1) : undefined;
-          const pcDisplayName = displayChordName(pc.name, activeKey, selMode);
+        {/* ── 운지 (진행 바로 아래) — 재생 중엔 연주 코드 따라가고, 멈추면 마지막 코드 유지 ── */}
+        {(() => {
+          const isPlay    = playing && playIdx >= 0 && !!progression[playIdx];
+          const dispChord = isPlay ? progression[playIdx] : curChord;
+          if (!dispChord) return null;
+          const dispVar   = isPlay ? (progression[playIdx].variant || '') : curVar;
+
+          // 기법 보이스리딩 운지가 지정돼 있으면 그것만 표시 (음 이어짐), 아니면 일반 운지
+          const fixedShape = (dispChord.shape && dispChord.shape.frets) ? dispChord.shape : null;
+          const positions = fixedShape
+            ? [fixedShape]
+            : getGuitarShapes(dispChord.name, dispChord.note, dispChord.quality, dispVar);
+          const guitarIdx = fixedShape ? 0 : (isPlay ? 0 : Math.min(diagPosIdx, Math.max(positions.length - 1, 0)));
+
+          // 슬래시 코드 파싱
+          const slashIdx  = dispChord.name ? dispChord.name.indexOf('/') : -1;
+          const hasSlash  = slashIdx >= 0;
+          const chordPart = hasSlash ? dispChord.name.slice(0, slashIdx) : null;
+          const slashBassRaw  = hasSlash ? dispChord.name.slice(slashIdx + 1) : null;
+          const slashBassDisp = slashBassRaw
+            ? (usesFlatDisplay(activeKey, selMode) ? (TO_FLAT[slashBassRaw] || slashBassRaw) : slashBassRaw)
+            : null;
+          const pianoRootNote = hasSlash ? chordNameToNote(chordPart) : dispChord.note;
+
+          const vk = getVariantKey(dispVar, dispChord.quality);
+          const chordIntervals = VAR_IV[vk] || (dispChord.quality === 'min' ? [0,3,7] : [0,4,7]);
+          const maxInv   = Math.min(2, chordIntervals.length - 1);
+          const pianoInv = isPlay ? 0 : Math.min(diagPosIdx, maxInv);
+          const PIANO_LABELS = ['루트 포지션', '1전위', '2전위'];
+
+          // 구성음 (슬래시면 상위코드 기준) + 표시 기타 운지의 실제 발음음
+          const tonesRoot = hasSlash ? chordNameToNote(chordPart) : dispChord.note;
+          const dTones = getChordTones(tonesRoot, dispVar, dispChord.quality);
+          const dPlayed = (() => {
+            if (curInstr !== 'guitar') return null;
+            const _OP = [4,9,2,7,11,4];
+            const shp = positions[guitarIdx];
+            if (!shp) return null;
+            return new Set(shp.frets.map((f,i) => f>=0 ? NOTES[(_OP[i]+f)%12] : null).filter(Boolean));
+          })();
+
+          const variantChordName = hasSlash ? dispChord.name : dispChord.note + (dispVar || '');
+          const variantDisplayName = displayChordName(variantChordName, activeKey, selMode);
+
+          let pianoDisplayName = variantDisplayName;
+          let invBassNote = dispChord.note;
+          if (!hasSlash && pianoInv > 0 && pianoInv < chordIntervals.length) {
+            const rootSt = ki(dispChord.note);
+            const raw = NOTES[(rootSt + chordIntervals[pianoInv]) % 12];
+            invBassNote = usesFlatDisplay(activeKey, selMode) ? (TO_FLAT[raw] || raw) : raw;
+            pianoDisplayName += '/' + invBassNote;
+          }
+          const invHintText = hasSlash
+            ? `분수코드 ${PIANO_LABELS[pianoInv]} — ${slashBassDisp}이 최저음 (고정)`
+            : pianoInv === 0
+              ? `루트 포지션 — ${flatNote(dispChord.note, activeKey, selMode)}이 최저음`
+              : `${PIANO_LABELS[pianoInv]} — ${invBassNote}이 최저음`;
+
           return (
-            <View style={styles.playingFingering}>
-              <View style={styles.fingeringHdr}>
-                <Text style={styles.fingeringName}>{pcDisplayName}</Text>
+            <View style={styles.diagSection}>
+              <View style={styles.diagHeader}>
+                <Text style={styles.miniLabel}>운지{isPlay ? ' · 재생 중' : ''}</Text>
+                <View style={styles.instrToggle}>
+                  {['guitar','piano'].map(instr => (
+                    <TouchableOpacity key={instr}
+                      style={[styles.instrBtn, curInstr === instr && styles.instrBtnSel]}
+                      onPress={() => { setCurInstr(instr); setDiagPosIdx(0); }}>
+                      <Text style={[styles.instrBtnText, curInstr === instr && styles.instrBtnTextSel]}>
+                        {instr === 'guitar' ? '기타' : '피아노'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                  <View style={styles.strumSep} />
+                  {['strum','arp'].map(mode => (
+                    <TouchableOpacity key={mode}
+                      style={[styles.instrBtn, strumMode === mode && styles.instrBtnSel]}
+                      onPress={() => setStrumMode(mode)}>
+                      <Text style={[styles.instrBtnText, strumMode === mode && styles.instrBtnTextSel]}>
+                        {mode === 'strum' ? '스트럼' : '아르페지오'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-              {curInstr === 'guitar' && shapes.length > 1 && (
+              {!isPlay && curInstr === 'guitar' && positions.length > 1 && (
                 <View style={styles.posRow}>
-                  {shapes.map((s, i) => (
+                  {positions.map((p, i) => (
                     <TouchableOpacity key={i}
-                      style={[styles.posBtn, playShapeIdx === i && styles.posBtnSel]}
-                      onPress={() => setPlayShapeIdx(i)}>
-                      <Text style={[styles.posBtnText, playShapeIdx === i && styles.posBtnTextSel]}>{s.pos}</Text>
+                      style={[styles.posBtn, guitarIdx === i && styles.posBtnSel]}
+                      onPress={() => setDiagPosIdx(i)}>
+                      <Text style={[styles.posBtnText, guitarIdx === i && styles.posBtnTextSel]}>
+                        {p.pos || `${i + 1}포지션`}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               )}
+              {!isPlay && curInstr === 'piano' && (
+                <View style={styles.posRow}>
+                  {PIANO_LABELS.map((label, i) => (
+                    <TouchableOpacity key={i}
+                      style={[styles.posBtn, pianoInv === i && styles.posBtnSel, i > maxInv && styles.posBtnDis]}
+                      onPress={() => i <= maxInv && setDiagPosIdx(i)}
+                      disabled={i > maxInv}>
+                      <Text style={[styles.posBtnText, pianoInv === i && styles.posBtnTextSel, i > maxInv && styles.posBtnTextDis]}>
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              <View style={styles.diagNameRow}>
+                <Text style={styles.diagChordNameLabel}>
+                  {curInstr === 'piano' ? pianoDisplayName : variantDisplayName}
+                </Text>
+                <View style={styles.tonesRow}>
+                  {slashBassDisp && (
+                    <React.Fragment>
+                      <Text style={[styles.diagTone, styles.diagToneBass]}>{slashBassDisp}</Text>
+                      <Text style={styles.diagToneSep}> / </Text>
+                    </React.Fragment>
+                  )}
+                  {dTones.map((t, i) => {
+                    const isOmitted = dPlayed && !dPlayed.has(t);
+                    return (
+                      <React.Fragment key={i}>
+                        {i > 0 && <Text style={styles.diagToneSep}> · </Text>}
+                        <Text style={[styles.diagTone, i === 0 && styles.diagToneRoot, isOmitted && styles.diagToneOmitted]}>{flatNote(t, activeKey, selMode)}</Text>
+                      </React.Fragment>
+                    );
+                  })}
+                </View>
+              </View>
               <View style={styles.diagWrap}>
-                {curInstr === 'guitar'
-                  ? <GuitarDiagram shape={shape} name={pc.name} displayName={pcDisplayName} posLabel={shape?.pos} slashBass={pcSlashBass} />
-                  : <PianoDiagram rootNote={pc.note} chordIntervals={pianoIvs} name={pcDisplayName} slashBass={pcSlashBass} />
-                }
+                {curInstr === 'guitar' ? (
+                  <GuitarDiagram
+                    shape={positions[guitarIdx] || null}
+                    name={variantChordName}
+                    displayName={variantDisplayName}
+                    posLabel={positions[guitarIdx]?.pos}
+                    slashBass={hasSlash ? slashBassRaw : undefined}
+                  />
+                ) : (
+                  <>
+                    <PianoDiagram
+                      name={pianoDisplayName}
+                      rootNote={pianoRootNote}
+                      chordIntervals={chordIntervals}
+                      inversion={pianoInv}
+                      slashBass={hasSlash ? slashBassRaw : undefined}
+                    />
+                    <Text style={styles.invHint}>{invHintText}</Text>
+                  </>
+                )}
               </View>
             </View>
           );
@@ -1391,153 +1669,6 @@ export default function ChordsTab({ onTranspose }) {
         ) : null;
       })()}
 
-      {/* ── 인라인 운지 ── */}
-      {curChord && (() => {
-        const positions = getGuitarShapes(curChord.name, curChord.note, curChord.quality, curVar);
-        const clampedPos = Math.min(diagPosIdx, Math.max(positions.length - 1, 0));
-        // 피아노 전위 계산
-        const vk = getVariantKey(curVar, curChord.quality);
-        const chordIntervals = VAR_IV[vk] || (curChord.quality === 'min' ? [0,3,7] : [0,4,7]);
-        const maxInv = Math.min(2, chordIntervals.length - 1);
-        const pianoInv = Math.min(diagPosIdx, maxInv);
-        const PIANO_LABELS = ['루트 포지션', '1전위', '2전위'];
-
-        // 슬래시 코드 파싱 (F/D → chordPart='F', slashBass='D')
-        const slashIdx = curChord.name.indexOf('/');
-        const hasSlash = slashIdx >= 0;
-        const chordPart = hasSlash ? curChord.name.slice(0, slashIdx) : null;
-        const slashBass = hasSlash ? curChord.name.slice(slashIdx + 1) : null;
-        // 피아노 rootNote: 슬래시 코드는 상위코드(F/C → F) 기준, 일반코드는 curChord.note
-        const pianoRootNote = hasSlash ? chordNameToNote(chordPart) : curChord.note;
-
-        // variant 포함 코드명 (슬래시 코드면 원본 이름 보존, 아니면 note+variant)
-        const variantChordName = hasSlash
-          ? curChord.name
-          : curChord.note + (curVar || '');
-        const variantDisplayName = displayChordName(variantChordName, activeKey, selMode);
-
-        // 피아노 슬래시 코드명 & 전위 힌트 (D/A 형태, 플랫 키 반영)
-        // 슬래시 코드는 전위 표기 추가하지 않음 (이미 베이스음 명시)
-        let pianoDisplayName = variantDisplayName;
-        let invBassNote = curChord.note;
-        if (!hasSlash && pianoInv > 0 && pianoInv < chordIntervals.length) {
-          const rootSt  = ki(curChord.note);
-          const bassPC  = (rootSt + chordIntervals[pianoInv]) % 12;
-          const raw     = NOTES[bassPC];
-          invBassNote   = usesFlatDisplay(activeKey, selMode) ? (TO_FLAT[raw] || raw) : raw;
-          pianoDisplayName += '/' + invBassNote;
-        }
-        const invHintText = hasSlash
-          ? `분수코드 ${PIANO_LABELS[pianoInv]} — ${chordSlashBass || slashBass}이 최저음 (고정)`
-          : pianoInv === 0
-            ? `루트 포지션 — ${curChord.note}이 최저음`
-            : `${PIANO_LABELS[pianoInv]} — ${invBassNote}이 최저음`;
-        return (
-          <View style={styles.diagSection}>
-            <View style={styles.diagHeader}>
-              <Text style={styles.miniLabel}>운지</Text>
-              <View style={styles.instrToggle}>
-                {['guitar','piano'].map(instr => (
-                  <TouchableOpacity
-                    key={instr}
-                    style={[styles.instrBtn, curInstr === instr && styles.instrBtnSel]}
-                    onPress={() => { setCurInstr(instr); setDiagPosIdx(0); }}>
-                    <Text style={[styles.instrBtnText, curInstr === instr && styles.instrBtnTextSel]}>
-                      {instr === 'guitar' ? '기타' : '피아노'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-                <View style={styles.strumSep} />
-                {['strum','arp'].map(mode => (
-                  <TouchableOpacity
-                    key={mode}
-                    style={[styles.instrBtn, strumMode === mode && styles.instrBtnSel]}
-                    onPress={() => setStrumMode(mode)}>
-                    <Text style={[styles.instrBtnText, strumMode === mode && styles.instrBtnTextSel]}>
-                      {mode === 'strum' ? '스트럼' : '아르페지오'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            {curInstr === 'guitar' && positions.length > 1 && (
-              <View style={styles.posRow}>
-                {positions.map((p, i) => (
-                  <TouchableOpacity
-                    key={i}
-                    style={[styles.posBtn, clampedPos === i && styles.posBtnSel]}
-                    onPress={() => setDiagPosIdx(i)}>
-                    <Text style={[styles.posBtnText, clampedPos === i && styles.posBtnTextSel]}>
-                      {p.pos || `${i + 1}포지션`}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-            {curInstr === 'piano' && (
-              <View style={styles.posRow}>
-                {PIANO_LABELS.map((label, i) => (
-                  <TouchableOpacity
-                    key={i}
-                    style={[styles.posBtn, pianoInv === i && styles.posBtnSel, i > maxInv && styles.posBtnDis]}
-                    onPress={() => i <= maxInv && setDiagPosIdx(i)}
-                    disabled={i > maxInv}>
-                    <Text style={[styles.posBtnText, pianoInv === i && styles.posBtnTextSel, i > maxInv && styles.posBtnTextDis]}>
-                      {label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-            {/* 코드명 + 구성음 헤더 */}
-            <View style={styles.diagNameRow}>
-              <Text style={styles.diagChordNameLabel}>
-                {curInstr === 'piano' ? pianoDisplayName : variantDisplayName}
-              </Text>
-              <View style={styles.tonesRow}>
-                {chordSlashBass && (
-                  <React.Fragment>
-                    <Text style={[styles.diagTone, styles.diagToneBass]}>{chordSlashBass}</Text>
-                    <Text style={styles.diagToneSep}> / </Text>
-                  </React.Fragment>
-                )}
-                {tones.map((t, i) => {
-                  const isOmitted = playedNotesForTones && !playedNotesForTones.has(t);
-                  return (
-                    <React.Fragment key={i}>
-                      {i > 0 && <Text style={styles.diagToneSep}> · </Text>}
-                      <Text style={[styles.diagTone, i === 0 && styles.diagToneRoot, isOmitted && styles.diagToneOmitted]}>{t}</Text>
-                    </React.Fragment>
-                  );
-                })}
-              </View>
-            </View>
-
-            <View style={styles.diagWrap}>
-              {curInstr === 'guitar' ? (
-                <GuitarDiagram
-                  shape={positions[clampedPos] || null}
-                  name={variantChordName}
-                  displayName={variantDisplayName}
-                  posLabel={positions[clampedPos]?.pos}
-                  slashBass={hasSlash ? slashBass : undefined}
-                />
-              ) : (
-                <>
-                  <PianoDiagram
-                    name={pianoDisplayName}
-                    rootNote={pianoRootNote}
-                    chordIntervals={chordIntervals}
-                    inversion={pianoInv}
-                    slashBass={hasSlash ? slashBass : undefined}
-                  />
-                  <Text style={styles.invHint}>{invHintText}</Text>
-                </>
-              )}
-            </View>
-          </View>
-        );
-      })()}
 
     </ScrollView>
   );

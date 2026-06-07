@@ -41,6 +41,7 @@ var VAR_IV = {
 };
 
 var NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+var FLAT2SHARP = { 'Bb':'A#','Eb':'D#','Ab':'G#','Db':'C#','Gb':'F#','Cb':'B','Fb':'E' };
 
 function getCtx() {
   if (!ctx) {
@@ -98,12 +99,19 @@ function note2midi(noteName, oct) {
  * 코드 보이싱: 루트(옥타브3)부터 위로 쌓는 오름차순 배치
  * ivs: 루트로부터의 실제 반음 인터벌 배열
  */
-function voiceChord(rootName, ivs) {
+function voiceChord(rootName, ivs, bassName) {
   var rootPc = NOTES.indexOf(rootName);
   if (rootPc < 0) return [];
 
-  var rootMidi = note2midi(rootName, 3); // 루트: C3=48, B3=59
   var freqs = [];
+
+  // 슬래시/페달 베이스음: 루트보다 한 옥타브 아래(옥타브2)에 깔아줌
+  if (bassName) {
+    var bn = FLAT2SHARP[bassName] || bassName;
+    if (NOTES.indexOf(bn) >= 0) freqs.push(midi2f(note2midi(bn, 2)));
+  }
+
+  var rootMidi = note2midi(rootName, 3); // 루트: C3=48, B3=59
   var prevMidi = rootMidi - 1;
 
   ivs.slice(0, 6).forEach(function(iv) {
@@ -118,78 +126,108 @@ function voiceChord(rootName, ivs) {
   return freqs;
 }
 
-// ── 기타 음색: 디튠 sawtooth 2개 + 필터 스윕 (현 진동 시뮬) ──────
+// ── 기타 음색: 통기타(어쿠스틱 스틸) — 따뜻한 기음 + 약한 배음 + 피크 어택 + 바디 공명 ──
 function makeGuitarTone(f, now, vol) {
-  // 두 오실레이터를 약간 디튠 → 코러스/현 진동 느낌
-  var o1 = ctx.createOscillator();
-  var o2 = ctx.createOscillator();
-  o1.type = 'sawtooth';
+  var o1 = ctx.createOscillator(); // 기음 (따뜻한 triangle)
+  var o2 = ctx.createOscillator(); // 현 광택 (약한 sawtooth)
+  var o3 = ctx.createOscillator(); // 미세 디튠 유니즌 (현 울림)
+  o1.type = 'triangle';
   o2.type = 'sawtooth';
+  o3.type = 'triangle';
   o1.frequency.value = f;
-  o2.frequency.value = f * 1.0035; // 미세 디튠
+  o2.frequency.value = f;
+  o3.frequency.value = f * 1.004;
+  var o2g = ctx.createGain(); o2g.gain.value = 0.32; // 배음 양 줄여 부드럽게
+  var o3g = ctx.createGain(); o3g.gain.value = 0.5;
 
-  // 피킹 직후 밝다가 어두워지는 필터 스윕
+  // 피킹 직후 밝게 → 점점 따뜻하게 닫히는 로우패스
   var lpf = ctx.createBiquadFilter();
   lpf.type = 'lowpass';
-  lpf.frequency.setValueAtTime(Math.min(f * 10, 6000), now);
-  lpf.frequency.exponentialRampToValueAtTime(Math.min(f * 2.5, 2000), now + 0.25);
-  lpf.Q.value = 1.5;
+  lpf.frequency.setValueAtTime(Math.min(f * 8, 5500), now);
+  lpf.frequency.exponentialRampToValueAtTime(Math.min(f * 3, 2200), now + 0.18);
+  lpf.frequency.exponentialRampToValueAtTime(Math.min(f * 1.8, 1200), now + 1.2);
+  lpf.Q.value = 0.7;
 
-  // 바디 공명 (미드 살짝 부스트)
-  var body = ctx.createBiquadFilter();
-  body.type = 'peaking';
-  body.frequency.value = Math.min(f * 2, 400);
-  body.Q.value = 1.2;
-  body.gain.value = 3;
+  // 바디 공명 (저역 통울림 + 미드)
+  var body1 = ctx.createBiquadFilter();
+  body1.type = 'peaking'; body1.frequency.value = 110; body1.Q.value = 1.0; body1.gain.value = 5;
+  var body2 = ctx.createBiquadFilter();
+  body2.type = 'peaking'; body2.frequency.value = 240; body2.Q.value = 1.2; body2.gain.value = 3;
 
   var g = ctx.createGain();
-  var v = vol * 0.09;
+  var v = vol * 0.085;
   g.gain.setValueAtTime(0.001, now);
-  g.gain.linearRampToValueAtTime(v, now + 0.004);      // 4ms 빠른 어택
-  g.gain.exponentialRampToValueAtTime(v * 0.38, now + 0.16); // 초기 빠른 감쇠
-  g.gain.exponentialRampToValueAtTime(0.001, now + 2.2);     // 긴 감쇠
+  g.gain.linearRampToValueAtTime(v, now + 0.005);           // 5ms 어택
+  g.gain.exponentialRampToValueAtTime(v * 0.5, now + 0.12); // 초기 빠른 감쇠
+  g.gain.exponentialRampToValueAtTime(v * 0.18, now + 0.8);
+  g.gain.exponentialRampToValueAtTime(0.001, now + 2.6);    // 긴 자연 감쇠
 
   o1.connect(lpf);
-  o2.connect(lpf);
-  lpf.connect(body);
-  body.connect(g);
+  o2.connect(o2g); o2g.connect(lpf);
+  o3.connect(o3g); o3g.connect(lpf);
+  lpf.connect(body1); body1.connect(body2); body2.connect(g);
   g.connect(ctx.destination);
-  o1.start(now); o1.stop(now + 2.3);
-  o2.start(now); o2.stop(now + 2.3);
+  o1.start(now); o1.stop(now + 2.7);
+  o2.start(now); o2.stop(now + 2.7);
+  o3.start(now); o3.stop(now + 2.7);
+
+  // 피크 어택 노이즈 (현 뜯는 소리, 아주 짧게)
+  var bufSize = Math.floor(ctx.sampleRate * 0.012);
+  var nBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+  var nd = nBuf.getChannelData(0);
+  for (var k = 0; k < bufSize; k++) nd[k] = (Math.random() * 2 - 1) * (1 - k / bufSize);
+  var ns = ctx.createBufferSource(); ns.buffer = nBuf;
+  var nbp = ctx.createBiquadFilter();
+  nbp.type = 'bandpass'; nbp.frequency.value = Math.min(f * 3, 3000); nbp.Q.value = 0.8;
+  var ng = ctx.createGain();
+  ng.gain.setValueAtTime(vol * 0.05, now);
+  ng.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+  ns.connect(nbp); nbp.connect(ng); ng.connect(ctx.destination);
+  ns.start(now); ns.stop(now + 0.035);
 }
 
-// ── 피아노 음색: 해머 어택 + 인하모닉 배음 + 배음별 개별 decay ────────
+// ── 피아노 음색: 어쿠스틱 그랜드 — 인하모닉 배음 + 유니즌 디튠 + 해머 어택 ────────
 function makePianoTone(f, now, vol) {
-  var B = 0.00008;
+  var Binh = 0.0004; // 인하모닉시티 (현 강성 → 배음이 약간 높아짐)
   var harmonics = [
-    { n: 1, amp: 1.00,  decay: 2.2 },
-    { n: 2, amp: 0.50,  decay: 1.4 },
-    { n: 3, amp: 0.22,  decay: 0.9 },
-    { n: 4, amp: 0.12,  decay: 0.6 },
-    { n: 5, amp: 0.06,  decay: 0.4 },
-    { n: 6, amp: 0.025, decay: 0.3 },
+    { n: 1, amp: 1.00, decay: 3.4 },
+    { n: 2, amp: 0.64, decay: 2.1 },
+    { n: 3, amp: 0.42, decay: 1.4 },
+    { n: 4, amp: 0.24, decay: 0.95 },
+    { n: 5, amp: 0.15, decay: 0.65 },
+    { n: 6, amp: 0.09, decay: 0.48 },
+    { n: 7, amp: 0.05, decay: 0.35 },
+    { n: 8, amp: 0.03, decay: 0.27 },
   ];
 
+  // 금속성 줄이는 톤 셰이핑 로우패스 (밝게 → 약간 닫힘)
+  var tone = ctx.createBiquadFilter();
+  tone.type = 'lowpass';
+  tone.frequency.setValueAtTime(Math.min(f * 12, 9000), now);
+  tone.frequency.exponentialRampToValueAtTime(Math.min(f * 5, 4500), now + 0.3);
+  tone.Q.value = 0.5;
+  tone.connect(ctx.destination);
+
   harmonics.forEach(function(h) {
-    var o = ctx.createOscillator();
-    var g = ctx.createGain();
-    o.type = 'sine';
-    o.frequency.value = f * h.n * Math.sqrt(1 + B * h.n * h.n);
-
-    var v = vol * 0.10 * h.amp;
-    g.gain.setValueAtTime(0.001, now);
-    g.gain.linearRampToValueAtTime(v, now + 0.002);
-    g.gain.exponentialRampToValueAtTime(v * 0.6, now + 0.04);
-    g.gain.exponentialRampToValueAtTime(0.001, now + h.decay);
-
-    o.connect(g);
-    g.connect(ctx.destination);
-    o.start(now);
-    o.stop(now + h.decay + 0.05);
+    // 유니즌 2현 미세 디튠 (저~중 배음만) → 그랜드 특유의 풍부함/비팅
+    var detunes = (h.n <= 4) ? [0, 0.0016] : [0];
+    detunes.forEach(function(det) {
+      var o = ctx.createOscillator();
+      var g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.value = f * h.n * Math.sqrt(1 + Binh * h.n * h.n) * (1 + det);
+      var v = vol * 0.08 * h.amp * (det ? 0.5 : 1);
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.linearRampToValueAtTime(v, now + 0.003);          // 빠른 타건
+      g.gain.exponentialRampToValueAtTime(v * 0.5, now + 0.08); // 초기 감쇠
+      g.gain.exponentialRampToValueAtTime(0.0001, now + h.decay);
+      o.connect(g); g.connect(tone);
+      o.start(now); o.stop(now + h.decay + 0.05);
+    });
   });
 
-  // 해머 타격 노이즈 (아주 짧은 퍼쿠시브 어택)
-  var bufSize = Math.floor(ctx.sampleRate * 0.015);
+  // 해머 타격 노이즈 (타건감)
+  var bufSize = Math.floor(ctx.sampleRate * 0.012);
   var nBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
   var nd = nBuf.getChannelData(0);
   for (var k = 0; k < bufSize; k++) nd[k] = (Math.random() * 2 - 1) * (1 - k / bufSize);
@@ -197,23 +235,23 @@ function makePianoTone(f, now, vol) {
   ns.buffer = nBuf;
   var hpf = ctx.createBiquadFilter();
   hpf.type = 'highpass';
-  hpf.frequency.value = 1000;
+  hpf.frequency.value = 1200;
   var ng = ctx.createGain();
-  ng.gain.setValueAtTime(vol * 0.04, now);
-  ng.gain.exponentialRampToValueAtTime(0.001, now + 0.015);
+  ng.gain.setValueAtTime(vol * 0.035, now);
+  ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.02);
   ns.connect(hpf);
   hpf.connect(ng);
   ng.connect(ctx.destination);
   ns.start(now);
-  ns.stop(now + 0.02);
+  ns.stop(now + 0.025);
 }
 
 // ── 코드 스케줄 ─────────────────────────────────────────────────
-function scheduleChord(note, variant, quality, vol, instr, arpBeatMs) {
+function scheduleChord(note, variant, quality, vol, instr, arpBeatMs, bass) {
   var vk = variant || (quality === 'min' ? 'm' : quality === 'dim' ? '\u00b0' : '');
   var ivs = VAR_IV[vk] || [0, 4, 7];
 
-  var freqs = voiceChord(note, ivs);
+  var freqs = voiceChord(note, ivs, bass);
   if (!freqs.length) return;
 
   playWhenReady(function() {
@@ -226,10 +264,40 @@ function scheduleChord(note, variant, quality, vol, instr, arpBeatMs) {
 
     freqs.forEach(function(f, i) {
       var t = now + i * strumMs;
+      // 최저음(베이스) 강조 → 하강/진행 베이스가 또렷하게 들림
+      var bassEmph = i === 0 ? 1.55 : (i === 1 ? 1.05 : 0.9);
       if (isPiano) {
-        makePianoTone(f, t, vol);
+        makePianoTone(f, t, vol * bassEmph);
       } else {
-        makeGuitarTone(f, t, vol * (isArp ? 1.1 : 1));
+        makeGuitarTone(f, t, vol * bassEmph * (isArp ? 1.1 : 1));
+      }
+    });
+  });
+}
+
+// ── 명시적 보이싱 스케줄 ────────────────────────────────────────
+// midis: 발음할 MIDI 번호 배열 (저음→고음 순서 그대로 스트럼).
+// 화면에 표시된 운지(기타 프렛/피아노 건반)에서 계산해 넘기므로 소리=그림.
+function scheduleVoicing(midis, vol, instr, arpBeatMs) {
+  if (!midis || !midis.length) return;
+  var freqs = midis.map(midi2f);
+
+  playWhenReady(function() {
+    var now = ctx.currentTime;
+    var isArp = (instr === 'guitar-arp' || instr === 'piano-arp');
+    var isPiano = (instr === 'piano' || instr === 'piano-arp');
+    var strumMs = isArp
+      ? (arpBeatMs || 200) / freqs.length / 1000
+      : isPiano ? 0 : 0.038;
+
+    freqs.forEach(function(f, i) {
+      var t = now + i * strumMs;
+      // 최저음(베이스) 강조 → 하강/진행 베이스가 또렷하게 들림
+      var bassEmph = i === 0 ? 1.55 : (i === 1 ? 1.05 : 0.9);
+      if (isPiano) {
+        makePianoTone(f, t, vol * bassEmph);
+      } else {
+        makeGuitarTone(f, t, vol * bassEmph * (isArp ? 1.1 : 1));
       }
     });
   });
@@ -239,7 +307,9 @@ function handleMsg(raw) {
   try {
     var m = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (m.type === 'playChord') {
-      scheduleChord(m.note, m.variant || '', m.quality, m.vol || 0.5, m.instr || 'guitar', m.arpBeatMs);
+      scheduleChord(m.note, m.variant || '', m.quality, m.vol || 0.5, m.instr || 'guitar', m.arpBeatMs, m.bass || null);
+    } else if (m.type === 'playVoicing') {
+      scheduleVoicing(m.midis || [], m.vol || 0.5, m.instr || 'guitar', m.arpBeatMs);
     } else if (m.type === 'unlock') {
       unlock();
     }
@@ -259,9 +329,14 @@ const AudioEngine = forwardRef((props, ref) => {
   const wvRef = useRef(null);
 
   useImperativeHandle(ref, () => ({
-    playChord: (note, variant, quality, vol = 0.5, instr = 'guitar', arpBeatMs) => {
+    playChord: (note, variant, quality, vol = 0.5, instr = 'guitar', arpBeatMs, bass) => {
       if (!wvRef.current) return;
-      const msg = JSON.stringify({ type: 'playChord', note, variant: variant || '', quality, vol, instr, arpBeatMs });
+      const msg = JSON.stringify({ type: 'playChord', note, variant: variant || '', quality, vol, instr, arpBeatMs, bass: bass || null });
+      wvRef.current.injectJavaScript(`handleMsg(${JSON.stringify(msg)});true;`);
+    },
+    playVoicing: (midis, vol = 0.5, instr = 'guitar', arpBeatMs) => {
+      if (!wvRef.current) return;
+      const msg = JSON.stringify({ type: 'playVoicing', midis: midis || [], vol, instr, arpBeatMs });
       wvRef.current.injectJavaScript(`handleMsg(${JSON.stringify(msg)});true;`);
     },
     unlock: () => {

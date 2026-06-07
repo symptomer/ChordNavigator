@@ -273,3 +273,280 @@ export function getGuitarShapes(name, note, quality, variant) {
   // 5) 낮은 프렛 순 정렬 (오픈 포지션 최우선)
   return [...result].sort((a, b) => minActiveFret(a) - minActiveFret(b));
 }
+
+// ── 피아노 보이싱 (PianoDiagram 표시 + 오디오 재생 공용) ──────────────────
+// 다이어그램이 그리는 음과 소리가 동일하도록 단일 출처로 둠.
+// semitone 0–23 (2옥타브, C 기준). hand: 'L'(왼손 베이스) | 'R'(오른손)
+function pianoToSharp(note) { return FLAT_TO_SHARP_MAP[note] || note; }
+
+// pcs를 minSt보다 큰 위치에 배치 (상위 옥타브 우선, 스팬 최소화)
+export function placeAbove(pcs, minSt) {
+  const sorted = [...new Set(pcs)].sort((a, b) => a - b);
+  if (!sorted.length) return [];
+
+  let best = null, bestScore = Infinity;
+
+  for (let start = 0; start < sorted.length; start++) {
+    const arr = [];
+    let cur = minSt;
+    let ok  = true;
+    for (let i = 0; i < sorted.length; i++) {
+      let pos = sorted[(start + i) % sorted.length];
+      while (pos <= cur) pos += 12;
+      if (pos > 23) { ok = false; break; }
+      arr.push(pos);
+      cur = pos;
+    }
+    if (!ok || !arr.length) continue;
+
+    const canShift = arr[arr.length - 1] + 12 <= 23;
+    const candidate = (arr[0] < 12 && canShift) ? arr.map(p => p + 12) : arr;
+    if (candidate[candidate.length - 1] > 23) continue;
+
+    const span  = candidate[candidate.length - 1] - candidate[0];
+    const score = (candidate[0] < 12 ? 50 : 0) + span;
+    if (score < bestScore) { bestScore = score; best = candidate; }
+  }
+
+  return best || [];
+}
+
+// 일반 코드 / 전위. inversion 0=루트, 1=1전위, 2=2전위
+export function getInversionKeys(rootSt, intervals, inversion) {
+  if (!intervals || !intervals.length) return [];
+  const pcs = [...new Set(intervals.map(iv => (rootSt + iv) % 12))];
+  const n   = pcs.length;
+  const inv = Math.min(inversion, n - 1);
+  const bassPc = pcs[inv];
+
+  const result = [{ semitone: bassPc, isRoot: bassPc === rootSt, hand: 'L' }];
+
+  const rhPcs = n >= 5
+    ? pcs.filter(pc => pc !== (rootSt + 7) % 12 && pc !== bassPc)
+    : pcs.filter(pc => pc !== bassPc);
+
+  if (rhPcs.length) {
+    for (const pos of placeAbove(rhPcs, bassPc)) {
+      result.push({ semitone: pos, isRoot: pos % 12 === rootSt, hand: 'R' });
+    }
+  }
+
+  if (n <= 3 && result.filter(k => k.hand === 'R').length < 3) {
+    const rhKeys  = result.filter(k => k.hand === 'R');
+    const maxRhSt = rhKeys.length ? Math.max(...rhKeys.map(k => k.semitone)) : bassPc;
+    let rd = bassPc;
+    while (rd <= maxRhSt) rd += 12;
+    if (rd > 23) rd -= 12;
+    if (rd > bassPc && rd <= 23 && !result.find(k => k.semitone === rd))
+      result.push({ semitone: rd, isRoot: rd % 12 === rootSt, hand: 'R' });
+  }
+
+  return result;
+}
+
+// 슬래시 코드. LH=지정 베이스음(고정), RH=상위코드 보이싱
+export function getSlashBassKeys(rootSt, intervals, bassNoteName, inversion = 0) {
+  if (!intervals || !intervals.length) return [];
+  const bassSt = ki(pianoToSharp(bassNoteName));
+  if (bassSt < 0) return getInversionKeys(rootSt, intervals, 0);
+
+  const pcsInOrder = [...new Set(intervals.map(iv => (rootSt + iv) % 12))];
+  const n = pcsInOrder.length;
+
+  const result = [{ semitone: bassSt, isRoot: bassSt % 12 === rootSt, hand: 'L' }];
+
+  // RH = 상위코드 전체 구성음 (베이스가 코드톤이어도 빼지 않음)
+  // → 트라이어드 풀 3음 표시 + 노란건반 ≥3, F/A·Dm/A 등 명확히 구분
+  const toPlace = [...pcsInOrder];
+  const m = toPlace.length;
+  const inv = Math.min(inversion, m - 1);
+
+  const rhKeys = [];
+  let cur = bassSt;
+  let allPlaced = true;
+  for (let i = 0; i < m; i++) {
+    let pos = toPlace[(inv + i) % m];
+    while (pos <= cur) pos += 12;
+    if (pos > 23) { allPlaced = false; break; }
+    rhKeys.push({ semitone: pos, isRoot: pos % 12 === rootSt, hand: 'R' });
+    cur = pos;
+  }
+
+  if (!allPlaced) {
+    const placed = placeAbove(toPlace, bassSt);
+    rhKeys.length = 0;
+    placed.forEach(pos =>
+      rhKeys.push({ semitone: pos, isRoot: pos % 12 === rootSt, hand: 'R' }));
+  }
+
+  if (rhKeys.length > 0 && rhKeys[0].semitone < 12 &&
+      rhKeys[rhKeys.length - 1].semitone + 12 <= 23) {
+    rhKeys.forEach(k => { k.semitone += 12; });
+  }
+
+  result.push(...rhKeys);
+
+  if (n <= 3 && result.filter(k => k.hand === 'R').length < 3) {
+    const rhPart = result.filter(k => k.hand === 'R');
+    const maxRhSt = rhPart.length ? Math.max(...rhPart.map(k => k.semitone)) : bassSt;
+    const startPc = toPlace[inv % m];
+    let rd = startPc;
+    while (rd <= maxRhSt) rd += 12;
+    if (rd > 23) rd -= 12;
+    if (rd > bassSt && rd <= 23 && !result.find(k => k.semitone === rd))
+      result.push({ semitone: rd, isRoot: rd % 12 === rootSt, hand: 'R' });
+  }
+
+  return result;
+}
+
+// 피아노 표시 keys → 실제 발음 MIDI 배열 (오름차순). C3=48 기준 (semitone 0=C3)
+export function pianoVoicingMidis(rootNote, intervals, slashBass, inversion = 0) {
+  const rootSt = ki(rootNote);
+  if (rootSt < 0 || !intervals || !intervals.length) return [];
+  const keys = slashBass
+    ? getSlashBassKeys(rootSt, intervals, slashBass, inversion)
+    : getInversionKeys(rootSt, intervals, inversion);
+  return keys.map(k => 48 + k.semitone).sort((a, b) => a - b);
+}
+
+// ── 보이스리딩 운지 엔진 (기법 시퀀스: 클리셰·베이스하강·페달) ──────────────
+// 코드마다 독립 운지를 고르지 않고, 공통음은 유지하고 움직이는 음은 인접 위치로
+// 매끄럽게 "이어지도록" playable voicing 시퀀스를 고른다.
+const GTR_OPEN = [4, 9, 2, 7, 11, 4]; // 개방현 pc: 저음E A D G B 고음e
+
+function vlContiguous(frets) {
+  const act = frets.map((f, i) => (f >= 0 ? i : -1)).filter(i => i >= 0);
+  if (act.length < 3) return false;
+  return act[act.length - 1] - act[0] === act.length - 1; // 가운데 빈 줄 없음
+}
+function vlBuildShape(frets) {
+  const fretted = frets.filter(f => f > 0);
+  const minF = fretted.length ? Math.min(...fretted) : 0;
+  const base = minF > 1 ? minF : 1;
+  const fingers = frets.map(f => (f <= 0 ? 0 : Math.min(4, Math.max(1, f - base + 1))));
+  const maxF = fretted.length ? Math.max(...fretted) : 0;
+  const pos = !fretted.length || maxF <= 3 ? '오픈' : `${minF}프렛`;
+  return { frets: frets.slice(), fingers, pos };
+}
+function vlPosCost(v) {
+  let s = 0, low = -1;
+  for (let i = 0; i < 6; i++) {
+    const f = v.frets[i];
+    if (f >= 0) { if (low < 0) low = i; if (f > 0) s += f; }
+  }
+  return s + (low < 0 ? 0 : low) * 2; // 베이스를 낮은 줄에 (저음 우선)
+}
+function vlShapeDist(a, b) {
+  let d = 0;
+  for (let s = 0; s < 6; s++) {
+    const x = a.frets[s], y = b.frets[s];
+    if (x < 0 && y < 0) continue;
+    if (x < 0 || y < 0) { d += 3; continue; }   // 줄 on/off 전환 페널티
+    d += Math.abs(x - y);
+  }
+  return d;
+}
+
+const _voicingCache = new Map();
+// 한 코드의 연주가능 voicing 후보들. pcs=구성 pitch class, bassPc=최저음, rootPc=루트
+export function chordVoicings(pcs, bassPc, rootPc, maxFret = 8) {
+  const ck = `${[...new Set(pcs)].sort((a,b)=>a-b).join('.')}|${bassPc}|${rootPc}|${maxFret}`;
+  if (_voicingCache.has(ck)) return _voicingCache.get(ck);
+
+  const need = [...new Set(pcs)];
+  const fifthPc = (rootPc + 7) % 12;
+  const bass = bassPc == null ? rootPc : bassPc;
+  // 페달/슬래시: 베이스음이 상위코드 구성음이 아닐 수 있으므로 허용음에 포함
+  const allowed = new Set([...need, bass]);
+
+  const perString = GTR_OPEN.map(open => {
+    const opts = [-1];
+    for (let f = 0; f <= maxFret; f++) if (allowed.has((open + f) % 12)) opts.push(f);
+    return opts;
+  });
+
+  const results = [];
+  const frets = new Array(6).fill(-1);
+  function rec(s) {
+    if (s === 6) {
+      const active = [];
+      for (let i = 0; i < 6; i++) if (frets[i] >= 0) active.push(i);
+      if (active.length < 3) return;
+      if (active[active.length - 1] - active[0] !== active.length - 1) return; // 연속
+      const lowest = active[0];
+      if ((GTR_OPEN[lowest] + frets[lowest]) % 12 !== bass) return;            // 베이스
+      const played = new Set(active.map(i => (GTR_OPEN[i] + frets[i]) % 12));
+      for (const pc of need) if (pc !== fifthPc && !played.has(pc)) return;     // 5도 외 전부
+      const fretted = active.map(i => frets[i]).filter(f => f > 0);
+      if (fretted.length > 4) return;                                          // 손가락
+      if (fretted.length && Math.max(...fretted) - Math.min(...fretted) > 3) return; // 스팬
+      results.push(vlBuildShape(frets));
+      return;
+    }
+    for (const f of perString[s]) { frets[s] = f; rec(s + 1); frets[s] = -1; }
+  }
+  rec(0);
+
+  const seen = new Set();
+  const out = results.filter(v => { const k = v.frets.join(','); if (seen.has(k)) return false; seen.add(k); return true; });
+  _voicingCache.set(ck, out);
+  return out;
+}
+
+// 기법 시퀀스 보이스리딩: specs=[{pcs,bassPc,rootPc}] → playable voicing 시퀀스 (이동량 최소)
+export function voiceLeadSequence(specs) {
+  if (!specs || !specs.length) return null;
+  const cands = specs.map(s => {
+    let c = chordVoicings(s.pcs, s.bassPc, s.rootPc, 8);
+    if (!c.length) c = chordVoicings(s.pcs, s.bassPc, s.rootPc, 12);
+    return c;
+  });
+  if (cands.some(c => !c.length)) return null;
+
+  const POS_W = 0.2;
+  const n = specs.length;
+  const dp = cands.map(c => c.map(() => Infinity));
+  const back = cands.map(c => c.map(() => -1));
+  cands[0].forEach((v, j) => { dp[0][j] = vlPosCost(v) * POS_W; });
+  for (let i = 1; i < n; i++) {
+    for (let j = 0; j < cands[i].length; j++) {
+      const vj = cands[i][j];
+      let best = Infinity, bk = -1;
+      for (let k = 0; k < cands[i - 1].length; k++) {
+        const c = dp[i - 1][k] + vlShapeDist(cands[i - 1][k], vj);
+        if (c < best) { best = c; bk = k; }
+      }
+      dp[i][j] = best + vlPosCost(vj) * POS_W;
+      back[i][j] = bk;
+    }
+  }
+  let bj = 0;
+  for (let j = 1; j < cands[n - 1].length; j++) if (dp[n - 1][j] < dp[n - 1][bj]) bj = j;
+  const out = new Array(n);
+  for (let i = n - 1; i >= 0; i--) { out[i] = cands[i][bj]; bj = i > 0 ? back[i][bj] : bj; }
+  return out;
+}
+
+// 기법 시퀀스 피아노 보이스리딩. specs=[{pcs,bassPc,rootPc}]
+// → 각 코드 { keys:[{semitone(0-23 다이어그램용),hand,isRoot}], midis:[절대 MIDI, 오디오용] }
+// 베이스는 하행(또는 유지)하도록 옥타브 배치, 다이어그램은 2옥타브(C기준)에 맞춰 시프트,
+// 오디오 midis는 절대음정 정확(베이스가 실제로 내려감). 상성부는 전체 구성음(≥3음).
+export function pianoVoiceLeadSequence(specs) {
+  if (!specs || !specs.length) return null;
+  const ref = specs[specs.length - 1].bassPc; // 마지막(최저) 베이스를 기준
+  const bassSemi = specs.map(s => ((s.bassPc - ref) % 12 + 12) % 12); // 0-11, 하행 시 단조감소
+  const midiBase = 48 + specs[0].bassPc - bassSemi[0]; // 첫 베이스를 절대음정에 고정
+  return specs.map((s, i) => {
+    const bSemi = bassSemi[i];
+    const keys = [{ semitone: bSemi, hand: 'L', isRoot: s.bassPc === s.rootPc }];
+    const midis = [midiBase + bSemi];
+    [...new Set(s.pcs)].forEach(pc => {
+      const semi = 12 + (((pc - ref) % 12 + 12) % 12); // 상성부: 상위 옥타브 12-23
+      keys.push({ semitone: semi, hand: 'R', isRoot: pc === s.rootPc });
+      midis.push(midiBase + semi);
+    });
+    midis.sort((a, b) => a - b);
+    return { keys, midis };
+  });
+}

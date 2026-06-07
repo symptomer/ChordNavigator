@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import Purchases, { LOG_LEVEL } from 'react-native-purchases';
+import Purchases, { LOG_LEVEL, purchasesAvailable } from '../utils/purchases';
 
 const PurchaseContext = createContext(null);
 
@@ -21,6 +21,7 @@ export function PurchaseProvider({ children }) {
 
   useEffect(() => {
     async function init() {
+      if (!purchasesAvailable) return;  // Expo Go 등 — 결제 비활성, 무료 상태 유지
       try {
         if (IS_DEV) Purchases.setLogLevel(LOG_LEVEL.DEBUG);
         await Purchases.configure({ apiKey: RC_API_KEY_IOS });

@@ -7,7 +7,7 @@ import { useApp } from '../context/AppContext';
 import { usePurchase } from '../context/PurchaseContext';
 import { COLORS, GENRE_PROGS } from '../data/musicData';
 import { getChords } from '../utils/musicUtils';
-import Purchases from 'react-native-purchases';
+import Purchases from '../utils/purchases';
 
 // AI 분석 백엔드 (Cloudflare Worker) — API 키는 서버에만, 앱엔 없음
 const WORKER_URL = 'https://chordnavigator-ai.symptomer.workers.dev';

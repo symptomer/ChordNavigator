@@ -67,10 +67,17 @@ export function AppProvider({ children }) {
     if (k) setApiKeyState(k);
   }
 
-  function playChord(note, variant, quality, arpBeatMs) {
+  function playChord(note, variant, quality, arpBeatMs, bass) {
     let instr = curInstr;
     if (strumMode === 'arp') instr = curInstr === 'guitar' ? 'guitar-arp' : 'piano-arp';
-    audioRef.current?.playChord(note, variant, quality, vol, instr, arpBeatMs);
+    audioRef.current?.playChord(note, variant, quality, vol, instr, arpBeatMs, bass);
+  }
+
+  // 화면에 표시된 운지(기타 프렛/피아노 건반)에서 계산한 MIDI를 그대로 발음 → 소리=그림
+  function playVoicing(midis, arpBeatMs) {
+    let instr = curInstr;
+    if (strumMode === 'arp') instr = curInstr === 'guitar' ? 'guitar-arp' : 'piano-arp';
+    audioRef.current?.playVoicing(midis, vol, instr, arpBeatMs);
   }
 
   function resetNavigator() {
@@ -96,7 +103,7 @@ export function AppProvider({ children }) {
       measureBreaks, setMeasureBreaks,
       apiKey, setApiKey, loadApiKey,
       saved, loadSaved, saveProg, deleteSaved,
-      playChord, resetNavigator,
+      playChord, playVoicing, resetNavigator,
     }}>
       <AudioEngine ref={audioRef} />
       {children}
