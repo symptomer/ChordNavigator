@@ -150,11 +150,11 @@ const SECTIONS = [
       },
       {
         type: 'section', label: 'AI 분석 (프리미엄)',
-        desc: 'Claude API로 장르·레벨에 맞는 코드 추천 + 상세 해설. 본인의 Claude API 키 필요.',
+        desc: '장르·레벨에 맞는 코드 추천 + 상세 해설을 AI가 생성. 프리미엄이면 별도 설정 없이 바로 사용해요.',
       },
       {
-        type: 'section', label: 'API 키 입력',
-        desc: 'Anthropic Console(console.anthropic.com)에서 발급. 분석 탭 상단에 입력 후 저장.',
+        type: 'section', label: '사용 방법',
+        desc: '분석 탭에서 코드 진행(예: C Am F G)을 입력하고 ✦ AI 분석을 누르면 끝. API 키 같은 건 입력할 필요 없어요.',
       },
       {
         type: 'section', label: '▶ 버튼',

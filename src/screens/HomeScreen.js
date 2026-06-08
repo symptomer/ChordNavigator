@@ -30,6 +30,15 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.heroChar}>♩</Text>
           <Text style={styles.heroTitle}>CHORD NAVIGATOR</Text>
           <Text style={styles.heroSub}>코드 진행 탐색기</Text>
+
+          <TouchableOpacity
+            style={[styles.premiumPill, isPremium && styles.premiumPillActive]}
+            onPress={() => showPaywall()}
+            activeOpacity={0.8}>
+            <Text style={[styles.premiumPillText, isPremium && styles.premiumPillTextActive]}>
+              {isPremium ? '✦ 프리미엄 이용 중' : '✦ 프리미엄 잠금 해제'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.label}>키 선택</Text>
@@ -95,6 +104,10 @@ const styles = StyleSheet.create({
   heroChar:      { fontSize: 56, color: COLORS.accent },
   heroTitle:     { fontSize: 14, color: COLORS.accent, letterSpacing: 4, marginTop: 4, fontWeight: '700' },
   heroSub:       { fontSize: 11, color: COLORS.text2, letterSpacing: 2, marginTop: 4 },
+  premiumPill:       { marginTop: 16, paddingVertical: 8, paddingHorizontal: 18, borderRadius: 20, borderWidth: 1, borderColor: COLORS.accent, backgroundColor: COLORS.bg3 },
+  premiumPillActive: { backgroundColor: '#1c1a10' },
+  premiumPillText:       { fontSize: 12, color: COLORS.accent, fontWeight: '700', letterSpacing: 1 },
+  premiumPillTextActive: { color: COLORS.accent },
   label:         { fontSize: 10, color: COLORS.text2, letterSpacing: 2, marginBottom: 10, marginTop: 4 },
   keyGrid:       { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 18 },
   kbtn:          { width: '14.5%', paddingVertical: 10, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, backgroundColor: COLORS.card, alignItems: 'center' },
