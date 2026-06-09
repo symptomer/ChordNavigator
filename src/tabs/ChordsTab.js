@@ -546,6 +546,33 @@ function displayedVoicingMidis(chord, variant, instr, shapeIdx = 0) {
   return midis && midis.length ? midis : null;
 }
 
+// 한 마디(per박)를 코드 수에 맞춰 "깔끔한 음표값"으로 분배 — 합은 항상 per박.
+// 5코드 이상도 0.8박 같은 어정쩡한 값 대신 1박·0.5박(필요시 0.25박) 단위로 채움.
+//   4/4: 2:[2,2] 3:[2,1,1] 4:[1,1,1,1] 5:[1,1,1,0.5,0.5] 8:[0.5×8]
+//   3/4: 2:[2,1] 3:[1,1,1] 4:[1,1,0.5,0.5] 5:[1,0.5,0.5,0.5,0.5] 6:[0.5×6]
+function measurePattern(count, per = 4) {
+  if (count <= 0) return [];
+  if (count === 1) return [per];
+  if (per === 4) {
+    if (count === 2) return [2, 2];
+    if (count === 3) return [2, 1, 1];
+    if (count === 4) return [1, 1, 1, 1];
+  } else if (per === 3) {
+    if (count === 2) return [2, 1];
+    if (count === 3) return [1, 1, 1];
+  }
+  // 코드 수 > per: 반박(0.5) per*2개를 앞쪽이 길도록 균등 분배
+  const half = per * 2;
+  if (count <= half) {
+    const base = Math.floor(half / count), rem = half - base * count;
+    return Array.from({ length: count }, (_, i) => (base + (i < rem ? 1 : 0)) * 0.5);
+  }
+  // 더 많으면 16분(0.25) 단위
+  const q = per * 4;
+  const base = Math.floor(q / count), rem = q - base * count;
+  return Array.from({ length: count }, (_, i) => (base + (i < rem ? 1 : 0)) * 0.25);
+}
+
 export default function ChordsTab({ onTranspose }) {
   const {
     activeKey, selMode, transKey, setTransKey,
@@ -558,8 +585,12 @@ export default function ChordsTab({ onTranspose }) {
     saved, loadSaved, saveProg, deleteSaved,
     maxProg, setMaxProg,
     measureBreaks, setMeasureBreaks,
+    timeSig, setTimeSig,
     apiKey,
   } = useApp();
+
+  // 한 마디당 박자 수 (4/4=4, 3/4=3)
+  const beatsPerMeasure = timeSig === '3/4' ? 3 : 4;
 
   const { isPremium, showPaywall } = usePurchase();
 
@@ -585,6 +616,39 @@ export default function ChordsTab({ onTranspose }) {
   const [showSaved,    setShowSaved]    = useState(false);
   const [editIdx,      setEditIdx]      = useState(null);
   const [techBeatMap,  setTechBeatMap]  = useState({});
+
+  // ── 실행취소(이전) — 진행/마디 상태를 1단계 되돌리기 ──
+  // 모든 변경(코드추가·삭제·마디추가/삭제/복사·기법교체 등)을 자동 스냅샷.
+  const undoRef        = useRef([]);
+  const isRestoringRef = useRef(false);
+  const prevSnapRef    = useRef(null);
+  const [canUndo, setCanUndo] = useState(false);
+  useEffect(() => {
+    const cur = { progression, measureBreaks, maxProg, timeSig };
+    if (prevSnapRef.current === null) { prevSnapRef.current = cur; return; } // 첫 마운트
+    if (isRestoringRef.current) {           // 되돌리기로 인한 변경은 스택에 안 쌓음
+      isRestoringRef.current = false;
+      prevSnapRef.current = cur;
+      return;
+    }
+    undoRef.current.push(prevSnapRef.current); // 변경 "직전" 상태 저장
+    if (undoRef.current.length > 60) undoRef.current.shift();
+    prevSnapRef.current = cur;
+    setCanUndo(true);
+  }, [progression, measureBreaks, maxProg, timeSig]);
+
+  function undoStep() {
+    if (!undoRef.current.length) return;
+    const snap = undoRef.current.pop();
+    if (playingRef.current) stopPlay();
+    isRestoringRef.current = true;
+    setProgression(snap.progression);
+    setMeasureBreaks(snap.measureBreaks);
+    setMaxProg(snap.maxProg);
+    if (snap.timeSig != null) setTimeSig(snap.timeSig);
+    setEditIdx(null);
+    setCanUndo(undoRef.current.length > 0);
+  }
 
   const chords = getChords(activeKey, selMode);
   const levelDef  = LEVEL_DEFAULT[selLevel]  || LEVEL_DEFAULT.mid;
@@ -625,11 +689,11 @@ export default function ChordsTab({ onTranspose }) {
       if (progression.length >= maxProg) return;
       setProgression(prev => [...prev, entry]);
       setEditIdx(null);
-      // 마지막 마디가 4코드가 되면 자동으로 새 마디 시작
+      // 마지막 마디가 박자수(4/4=4, 3/4=3)만큼 차면 자동으로 새 마디 시작
       const lastBreak = measureBreaks[measureBreaks.length - 1];
-      if (progression.length + 1 - lastBreak === 4) {
+      if (progression.length + 1 - lastBreak === beatsPerMeasure) {
         setMeasureBreaks(prev => [...prev, progression.length + 1]);
-        setMaxProg(prev => prev + 4);
+        setMaxProg(prev => prev + beatsPerMeasure);
       }
     }
   }
@@ -642,6 +706,27 @@ export default function ChordsTab({ onTranspose }) {
     if (editIdx !== null && editIdx < progression.length) {
       setProgression(prev => prev.map((p, i) =>
         i === editIdx ? { ...p, name, variant: v } : p
+      ));
+    }
+  }
+
+  // 장↔단 토글: 선택/편집 중인 코드를 같은 루트의 장3화음↔단3화음으로 뒤집음.
+  // C장조에서 F를 Fm으로 (평행단조 차용 iv) 등 — 다이아토닉에 없는 마이너를 바로 만들 때.
+  function toggleMajMin() {
+    if (!curChord) return;
+    const note = curChord.note;
+    const toMinor = curChord.quality !== 'min'; // maj/dim → min, min → maj
+    const quality = toMinor ? 'min' : 'maj';
+    const v = toMinor ? 'm' : '';
+    const name = note + v;
+    setCurChord({ name, note, quality });
+    setCurVar(v);
+    setDiagPosIdx(0);
+    playChord(note, v, quality, 60000 / bpm);
+    // 슬롯을 편집 중이면(칩 탭) 그 코드 자체를 교체 (quality까지 정확히)
+    if (editIdx !== null && editIdx < progression.length) {
+      setProgression(prev => prev.map((p, i) =>
+        i === editIdx ? { name, note, quality, variant: v } : p
       ));
     }
   }
@@ -659,7 +744,7 @@ export default function ChordsTab({ onTranspose }) {
     const last = measureBreaks[measureBreaks.length - 1];
     if (last === progression.length) return;
     setMeasureBreaks(prev => [...prev, progression.length]);
-    setMaxProg(prev => prev + 4);
+    setMaxProg(prev => prev + beatsPerMeasure);
     setEditIdx(null);
   }
 
@@ -811,7 +896,51 @@ export default function ChordsTab({ onTranspose }) {
         .map(b => b > startIdx ? b - count : b);
       return next.length > 0 ? next : [0];
     });
-    setMaxProg(prev => Math.max(16, prev - Math.max(count, 4)));
+    setMaxProg(prev => Math.max(16, prev - Math.max(count, beatsPerMeasure)));
+  }
+
+  // 박자표 변경: 기존 코드를 새 박자수(per)만큼 마디로 자동 재분할 + 옛 박자 오버라이드 제거
+  function changeTimeSig(ts) {
+    if (ts === timeSig) return;
+    const per = ts === '3/4' ? 3 : 4;
+    if (playingRef.current) stopPlay();
+    setTimeSig(ts);
+    const len = progression.length;
+    const breaks = [];
+    for (let i = 0; i < len; i += per) breaks.push(i);
+    setMeasureBreaks(breaks.length ? breaks : [0]);
+    // 옛 박자표 기준으로 박혀있던 beats 오버라이드는 제거(새 마디에 안 맞음)
+    setProgression(prev => prev.map(p => {
+      if (p.beats == null) return p;
+      const { beats, ...rest } = p;
+      return rest;
+    }));
+    setMaxProg(Math.max(16, Math.ceil(Math.max(len, 1) / per) * per + per));
+    setEditIdx(null);
+  }
+
+  // ── 마디 복사 ─────────────────────────────────────────────────
+  // 해당 마디의 코드들을 그대로 복제해 바로 아래에 새 마디로 삽입.
+  function copyMeasure(mIdx) {
+    const startIdx = measureBreaks[mIdx];
+    const endIdx   = mIdx + 1 < measureBreaks.length
+      ? measureBreaks[mIdx + 1]
+      : progression.length;
+    const slice = progression.slice(startIdx, endIdx).map(p => ({ ...p }));
+    if (!slice.length) return;
+    const len = slice.length;
+    setProgression(prev => [
+      ...prev.slice(0, endIdx),
+      ...slice,
+      ...prev.slice(endIdx),
+    ]);
+    // endIdx에 새 마디 경계 추가, 그 이후 경계는 len만큼 밀기
+    setMeasureBreaks(prev => {
+      const shifted = prev.map(b => (b >= endIdx ? b + len : b));
+      return [...shifted, endIdx].sort((a, b) => a - b);
+    });
+    setMaxProg(prev => prev + len);
+    setEditIdx(null);
   }
 
   // ── 재생 (진행) ───────────────────────────────────────────────
@@ -821,13 +950,22 @@ export default function ChordsTab({ onTranspose }) {
       const ei    = mIdx + 1 < breaks.length ? breaks[mIdx + 1] : prog.length;
       const count = ei - si;
       if (count <= 0) return;
+      // 1) 마디 안 코드들의 명시적 beats 오버라이드가 "모두 있고 합이 정확히 4박"일 때만 그대로 사용.
+      //    (의도적으로 넣은 ♩♩·♪ 박자는 보존)
+      let sum = 0, allHave = true;
       for (let i = si; i < ei; i++) {
-        if (prog[i]?.beats != null) { beats[i] = prog[i].beats; continue; }
-        if (count === 1)      beats[i] = 4;
-        else if (count === 2) beats[i] = 2;
-        else if (count === 3) beats[i] = (i === si) ? 2 : 1;
-        else                  beats[i] = 4 / count;
+        if (prog[i]?.beats != null) sum += prog[i].beats;
+        else allHave = false;
       }
+      if (allHave && Math.abs(sum - beatsPerMeasure) < 0.01) {
+        for (let i = si; i < ei; i++) beats[i] = prog[i].beats;
+        return;
+      }
+      // 2) 그 외(오버라이드 없음/일부만/합≠마디박자): 코드 수 기준 "깔끔한 음표값"으로 항상 마디를 채움.
+      //    → 삭제·복사·기법교체로 오버라이드가 깨져 마디가 짧게 끝나거나,
+      //      코드 수↑에서 0.8박 같은 어정쩡한 값이 되던 문제 방지. (4/4 2코드=2+2, 5코드=1·1·1·0.5·0.5)
+      const pattern = measurePattern(count, beatsPerMeasure);
+      for (let i = si; i < ei; i++) beats[i] = pattern[i - si];
     });
     return beats;
   }
@@ -899,7 +1037,8 @@ export default function ChordsTab({ onTranspose }) {
   async function handleExportMIDI() {
     if (!progression.length) { Alert.alert('진행이 없습니다'); return; }
     try {
-      await exportMIDI(progression, bpm);
+      const beats = getChordBeats(progression, measureBreaks); // 마디 박자 그대로 MIDI에 반영
+      await exportMIDI(progression, bpm, beats);
     } catch (e) {
       Alert.alert('MIDI 내보내기 실패', e.message);
     }
@@ -1010,6 +1149,12 @@ export default function ChordsTab({ onTranspose }) {
                 <Text style={styles.ctrlBtnLabel}>MIDI</Text>
               </TouchableOpacity>
             )}
+            {canUndo && (
+              <TouchableOpacity style={styles.ctrlBtn} onPress={undoStep}>
+                <Text style={styles.ctrlBtnTxt}>↩</Text>
+                <Text style={styles.ctrlBtnLabel}>이전</Text>
+              </TouchableOpacity>
+            )}
             {progression.length > 0 && (
               <TouchableOpacity style={styles.ctrlBtn} onPress={clearHistory}>
                 <Text style={styles.ctrlBtnTxt}>✕</Text>
@@ -1037,6 +1182,18 @@ export default function ChordsTab({ onTranspose }) {
               <Text style={[styles.instrBtnText, strumMode === mode && styles.instrBtnTextSel]}>
                 {mode === 'strum' ? '스트럼' : '아르페지오'}
               </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* 박자표 선택 (4/4 · 3/4) — 바꾸면 마디가 자동 재분할됨 */}
+        <View style={styles.timeSigRow}>
+          <Text style={styles.timeSigLabel}>박자표</Text>
+          {['4/4','3/4'].map(ts => (
+            <TouchableOpacity key={ts}
+              style={[styles.timeSigBtn, timeSig === ts && styles.timeSigBtnSel]}
+              onPress={() => changeTimeSig(ts)}>
+              <Text style={[styles.timeSigBtnText, timeSig === ts && styles.timeSigBtnTextSel]}>{ts}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -1071,124 +1228,7 @@ export default function ChordsTab({ onTranspose }) {
           </View>
         )}
 
-        {/* 저장된 진행 목록 */}
-        {showSaved && (
-          <View style={styles.savedList}>
-            {!saved.length
-              ? <Text style={styles.savedEmpty}>저장된 진행 없음</Text>
-              : saved.map((p, i) => (
-                  <TouchableOpacity key={i} style={styles.savedItem} onPress={() => handleLoad(p)}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.savedMeta}>{p.key} {p.mode === 'major' ? '장' : '단'}조 · {p.date}</Text>
-                      <Text style={styles.savedChords} numberOfLines={1}>
-                        {p.chords.map(n => displayChordName(n, p.key, p.mode)).join(' → ')}
-                      </Text>
-                    </View>
-                    <TouchableOpacity onPress={() => confirmDeleteSaved(i)} hitSlop={{top:6,bottom:6,left:6,right:6}}>
-                      <Text style={styles.savedDel}>✕</Text>
-                    </TouchableOpacity>
-                  </TouchableOpacity>
-                ))
-            }
-          </View>
-        )}
-
-        {/* 마디들 */}
-        {progression.length > 0 ? (
-          <View style={styles.measuresRow}>
-            {measureBreaks.map((startIdx, mIdx) => {
-              const endIdx = mIdx + 1 < measureBreaks.length
-                ? measureBreaks[mIdx + 1]
-                : progression.length;
-              const slice  = progression.slice(startIdx, endIdx);
-              const isLast = mIdx === measureBreaks.length - 1;
-              return (
-                <View key={mIdx} style={[styles.measureBlock, mIdx > 0 && styles.measureBlockSep]}>
-                  <View style={styles.measureHeaderRow}>
-                    <Text style={styles.measureLabel}>마디 {mIdx + 1}</Text>
-                    <View style={{ flexDirection:'row', gap:4 }}>
-                      {/* 빈 마디이거나 2번째 이상 마디는 삭제 가능 — 왼쪽 */}
-                      {(mIdx > 0 || slice.length === 0) && (
-                        <TouchableOpacity onPress={() => deleteMeasure(mIdx)} style={styles.delMeasureBtn}>
-                          <Text style={styles.delMeasureBtnText}>✕</Text>
-                        </TouchableOpacity>
-                      )}
-                      {/* 마디 추가 — 오른쪽 */}
-                      {isLast && (
-                        <TouchableOpacity onPress={addMeasure} style={styles.addMeasureBtn}>
-                          <Text style={styles.addMeasureBtnText}>+</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </View>
-                  {slice.length === 0
-                    ? isLast
-                      ? (
-                        <View style={styles.measureChips}>
-                          <TouchableOpacity
-                            style={[styles.histChip, styles.emptySlotChip, editIdx === null && styles.emptySlotActive]}
-                            onPress={() => setEditIdx(null)}>
-                          </TouchableOpacity>
-                        </View>
-                      )
-                      : <Text style={styles.emptyMeasureTxt}>빈 마디</Text>
-                    : (
-                      <View style={styles.measureChips}>
-                        {slice.map((p, si) => {
-                          const i         = startIdx + si;
-                          const isActive  = curChord?.note === p.note;
-                          const isLatest  = i === progression.length - 1;
-                          const isPlaying = playIdx === i;
-                          const isEditing = editIdx === i;
-                          return (
-                            <TouchableOpacity
-                              key={i}
-                              style={[
-                                styles.histChip,
-                                isLatest  && styles.histChipLast,
-                                isActive  && styles.histChipActive,
-                                isPlaying && styles.histChipPlaying,
-                                isEditing && styles.histChipEditing,
-                              ]}
-                              onPress={() => tapHistChip(p, i)}>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                                <Text style={[
-                                  styles.histName,
-                                  isLatest  && styles.histNameLast,
-                                  isActive  && styles.histNameActive,
-                                  isPlaying && styles.histNamePlaying,
-                                  isEditing && styles.histNameEditing,
-                                ]}>
-                                  {displayChordName(p.name, activeKey, selMode)}
-                                </Text>
-                                {p.beats === 0.5 && <Text style={styles.beatDot}>♪</Text>}
-                                {p.beats === 2   && <Text style={styles.beatDot}>♩♩</Text>}
-                              </View>
-                              <TouchableOpacity onPress={() => removeFromHistory(i)} hitSlop={{top:6,bottom:6,left:4,right:4}}>
-                                <Text style={styles.histX}>✕</Text>
-                              </TouchableOpacity>
-                            </TouchableOpacity>
-                          );
-                        })}
-                        {/* 빈 끝 슬롯 — 마지막 마디에만, 탭하면 append 모드 */}
-                        {isLast && (
-                          <TouchableOpacity
-                            style={[styles.histChip, styles.emptySlotChip, editIdx === null && styles.emptySlotActive]}
-                            onPress={() => setEditIdx(null)}>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    )
-                  }
-                </View>
-              );
-            })}
-          </View>
-        ) : (
-          <Text style={styles.histEmptyTxt}>코드를 선택하면 진행이 쌓입니다</Text>
-        )}
-
-        {/* ── 운지 (진행 바로 아래) — 재생 중엔 연주 코드 따라가고, 멈추면 마지막 코드 유지 ── */}
+        {/* ── 운지 (재생 버튼 바로 아래 고정) — 재생 중엔 연주 코드 따라가고, 멈추면 마지막 코드 유지 ── */}
         {(() => {
           const isPlay    = playing && playIdx >= 0 && !!progression[playIdx];
           const dispChord = isPlay ? progression[playIdx] : curChord;
@@ -1346,6 +1386,130 @@ export default function ChordsTab({ onTranspose }) {
             </View>
           );
         })()}
+
+        {/* 저장된 진행 목록 */}
+        {showSaved && (
+          <View style={styles.savedList}>
+            {!saved.length
+              ? <Text style={styles.savedEmpty}>저장된 진행 없음</Text>
+              : saved.map((p, i) => (
+                  <TouchableOpacity key={i} style={styles.savedItem} onPress={() => handleLoad(p)}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.savedMeta}>{p.key} {p.mode === 'major' ? '장' : '단'}조 · {p.date}</Text>
+                      <Text style={styles.savedChords} numberOfLines={1}>
+                        {p.chords.map(n => displayChordName(n, p.key, p.mode)).join(' → ')}
+                      </Text>
+                    </View>
+                    <TouchableOpacity onPress={() => confirmDeleteSaved(i)} hitSlop={{top:6,bottom:6,left:6,right:6}}>
+                      <Text style={styles.savedDel}>✕</Text>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))
+            }
+          </View>
+        )}
+
+        {/* 마디들 */}
+        {progression.length > 0 ? (
+          <View style={styles.measuresRow}>
+            {measureBreaks.map((startIdx, mIdx) => {
+              const endIdx = mIdx + 1 < measureBreaks.length
+                ? measureBreaks[mIdx + 1]
+                : progression.length;
+              const slice  = progression.slice(startIdx, endIdx);
+              const isLast = mIdx === measureBreaks.length - 1;
+              return (
+                <View key={mIdx} style={[styles.measureBlock, mIdx > 0 && styles.measureBlockSep]}>
+                  <View style={styles.measureHeaderRow}>
+                    <Text style={styles.measureLabel}>마디 {mIdx + 1}</Text>
+                    <View style={{ flexDirection:'row', gap:4 }}>
+                      {/* 마디 복사 — 코드가 있는 마디만, 바로 아래에 같은 마디 추가 */}
+                      {slice.length > 0 && (
+                        <TouchableOpacity onPress={() => copyMeasure(mIdx)} style={styles.copyMeasureBtn}>
+                          <Text style={styles.copyMeasureBtnText}>⧉ 복사</Text>
+                        </TouchableOpacity>
+                      )}
+                      {/* 빈 마디이거나 2번째 이상 마디는 삭제 가능 — 왼쪽 */}
+                      {(mIdx > 0 || slice.length === 0) && (
+                        <TouchableOpacity onPress={() => deleteMeasure(mIdx)} style={styles.delMeasureBtn}>
+                          <Text style={styles.delMeasureBtnText}>✕</Text>
+                        </TouchableOpacity>
+                      )}
+                      {/* 마디 추가 — 오른쪽 */}
+                      {isLast && (
+                        <TouchableOpacity onPress={addMeasure} style={styles.addMeasureBtn}>
+                          <Text style={styles.addMeasureBtnText}>+</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                  {slice.length === 0
+                    ? isLast
+                      ? (
+                        <View style={styles.measureChips}>
+                          <TouchableOpacity
+                            style={[styles.histChip, styles.emptySlotChip, editIdx === null && styles.emptySlotActive]}
+                            onPress={() => setEditIdx(null)}>
+                          </TouchableOpacity>
+                        </View>
+                      )
+                      : <Text style={styles.emptyMeasureTxt}>빈 마디</Text>
+                    : (
+                      <View style={styles.measureChips}>
+                        {slice.map((p, si) => {
+                          const i         = startIdx + si;
+                          const isActive  = curChord?.note === p.note;
+                          const isLatest  = i === progression.length - 1;
+                          const isPlaying = playIdx === i;
+                          const isEditing = editIdx === i;
+                          return (
+                            <TouchableOpacity
+                              key={i}
+                              style={[
+                                styles.histChip,
+                                isLatest  && styles.histChipLast,
+                                isActive  && styles.histChipActive,
+                                isPlaying && styles.histChipPlaying,
+                                isEditing && styles.histChipEditing,
+                              ]}
+                              onPress={() => tapHistChip(p, i)}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                                <Text style={[
+                                  styles.histName,
+                                  isLatest  && styles.histNameLast,
+                                  isActive  && styles.histNameActive,
+                                  isPlaying && styles.histNamePlaying,
+                                  isEditing && styles.histNameEditing,
+                                ]}>
+                                  {displayChordName(p.name, activeKey, selMode)}
+                                </Text>
+                                {p.beats === 0.5 && <Text style={styles.beatDot}>♪</Text>}
+                                {p.beats === 2   && <Text style={styles.beatDot}>♩♩</Text>}
+                              </View>
+                              <TouchableOpacity onPress={() => removeFromHistory(i)} hitSlop={{top:6,bottom:6,left:4,right:4}}>
+                                <Text style={styles.histX}>✕</Text>
+                              </TouchableOpacity>
+                            </TouchableOpacity>
+                          );
+                        })}
+                        {/* 빈 끝 슬롯 — 마지막 마디에만, 탭하면 append 모드 */}
+                        {isLast && (
+                          <TouchableOpacity
+                            style={[styles.histChip, styles.emptySlotChip, editIdx === null && styles.emptySlotActive]}
+                            onPress={() => setEditIdx(null)}>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )
+                  }
+                </View>
+              );
+            })}
+          </View>
+        ) : (
+          <Text style={styles.histEmptyTxt}>코드를 선택하면 진행이 쌓입니다</Text>
+        )}
+
       </View>
 
       {/* ── 곡 참조 + 장르 감지 ── */}
@@ -1542,7 +1706,21 @@ export default function ChordsTab({ onTranspose }) {
       {/* ── 변형 코드 ── */}
       {curChord && (
         <>
-          <Text style={[styles.label, { marginTop: 14 }]}>변형 코드</Text>
+          <View style={styles.varHeaderRow}>
+            <Text style={styles.label}>변형 코드</Text>
+            <View style={styles.majMinToggle}>
+              {[['maj','장조'],['min','단조 m']].map(([q, lbl]) => {
+                const sel = (curChord.quality === 'min') === (q === 'min');
+                return (
+                  <TouchableOpacity key={q}
+                    style={[styles.majMinBtn, sel && styles.majMinBtnSel]}
+                    onPress={() => { if (!sel) toggleMajMin(); }}>
+                    <Text style={[styles.majMinBtnText, sel && styles.majMinBtnTextSel]}>{lbl}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
           <View style={styles.varRow}>
             {variants.map((v, vi) => {
               const vName  = curChord.note + (v || '');
@@ -1713,6 +1891,8 @@ const styles = StyleSheet.create({
   addMeasureBtnText:  { fontSize: 9, color: COLORS.accent },
   delMeasureBtn:      { paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1, borderColor: COLORS.red, borderRadius: 4 },
   delMeasureBtnText:  { fontSize: 9, color: COLORS.red },
+  copyMeasureBtn:     { paddingHorizontal: 6, paddingVertical: 1, borderWidth: 1, borderColor: COLORS.purple, borderRadius: 4 },
+  copyMeasureBtnText: { fontSize: 9, color: COLORS.purple },
   emptyMeasureTxt:    { fontSize: 9, color: COLORS.text2, fontStyle: 'italic', paddingVertical: 2 },
   measureChips:       { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   histChip:        { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 4, borderRadius: 7, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.card },
@@ -1780,6 +1960,12 @@ const styles = StyleSheet.create({
   varRow:        { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginBottom: 8 },
   varBtn:        { paddingHorizontal: 9, paddingVertical: 5, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, backgroundColor: COLORS.card },
   varBtnActive:  { borderColor: COLORS.purple, backgroundColor: 'rgba(167,139,250,0.1)' },
+  varHeaderRow:  { flexDirection: 'row', alignItems: 'center', marginTop: 14, marginBottom: 6 },
+  majMinToggle:  { flexDirection: 'row', gap: 4 },
+  majMinBtn:     { paddingHorizontal: 12, paddingVertical: 4, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, backgroundColor: COLORS.card },
+  majMinBtnSel:  { borderColor: COLORS.accent, backgroundColor: 'rgba(232,196,106,0.12)' },
+  majMinBtnText: { fontSize: 11, color: COLORS.text2 },
+  majMinBtnTextSel: { color: COLORS.accent, fontWeight: '700' },
   varBtnText:    { fontSize: 11, color: COLORS.text2 },
   varBtnTextActive:{ color: COLORS.purple },
 
@@ -1799,6 +1985,12 @@ const styles = StyleSheet.create({
   instrBtnSel:   { borderColor: COLORS.accent, backgroundColor: 'rgba(232,196,106,0.12)' },
   instrBtnText:  { fontSize: 11, color: COLORS.text2 },
   instrBtnTextSel:{ color: COLORS.accent },
+  timeSigRow:    { flexDirection: 'row', gap: 5, alignItems: 'center', paddingBottom: 6 },
+  timeSigLabel:  { fontSize: 10, color: COLORS.text2, letterSpacing: 1, marginRight: 2 },
+  timeSigBtn:    { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.card },
+  timeSigBtnSel: { borderColor: COLORS.accent, backgroundColor: 'rgba(232,196,106,0.12)' },
+  timeSigBtnText:{ fontSize: 11, color: COLORS.text2 },
+  timeSigBtnTextSel:{ color: COLORS.accent, fontWeight: '700' },
   diagWrap:      { alignItems: 'center' },
   posRow:        { flexDirection: 'row', gap: 4, marginBottom: 8 },
   posBtn:        { flex: 1, paddingVertical: 5, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, backgroundColor: COLORS.card, alignItems: 'center' },

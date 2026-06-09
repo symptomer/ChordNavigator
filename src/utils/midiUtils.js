@@ -15,13 +15,14 @@ function vle(v) {
   return r;
 }
 
-export async function exportMIDI(progression, bpm) {
+// beatsArr: 코드별 재생 길이(박). 없으면 코드당 4박(이전 동작)으로 폴백.
+export async function exportMIDI(progression, bpm, beatsArr) {
   const tpb    = 480;
   const tempo  = Math.round(60000000 / bpm);
   const evts   = [[0, 0xFF, 0x51, 0x03,
     (tempo >> 16) & 0xFF, (tempo >> 8) & 0xFF, tempo & 0xFF]];
 
-  progression.forEach(p => {
+  progression.forEach((p, idx) => {
     const rn  = NOTE_MAP[p.note] || 60;
     // variant가 손실된 경우(저장 후 불러오기 등) name에서 재추출
     const suffix = p.name ? p.name.replace(p.note, '') : '';
@@ -35,7 +36,8 @@ export async function exportMIDI(progression, bpm) {
       return rn + diff;
     });
     ns.forEach(n => evts.push([0, 0x90, n, 80]));
-    const dur = tpb * 4;
+    const beats = (beatsArr && beatsArr[idx] != null) ? beatsArr[idx] : 4;
+    const dur = Math.round(tpb * beats);
     ns.forEach((n, i) => evts.push([i === 0 ? dur : 0, 0x80, n, 0]));
   });
   evts.push([0, 0xFF, 0x2F, 0x00]);

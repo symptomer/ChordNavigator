@@ -25,6 +25,7 @@ export function AppProvider({ children }) {
   const [bpm,        setBpm]        = useState(80);
   const [maxProg,    setMaxProg]    = useState(64);
   const [measureBreaks, setMeasureBreaks] = useState([0]); // 각 마디 시작 인덱스
+  const [timeSig,    setTimeSig]    = useState('4/4'); // 박자표: '4/4' | '3/4'
   const [apiKey,     setApiKeyState]= useState('');
   const [saved,      setSaved]      = useState([]);
 
@@ -101,6 +102,7 @@ export function AppProvider({ children }) {
       selLevel, setSelLevel,
       vol, setVol, bpm, setBpm, maxProg, setMaxProg,
       measureBreaks, setMeasureBreaks,
+      timeSig, setTimeSig,
       apiKey, setApiKey, loadApiKey,
       saved, loadSaved, saveProg, deleteSaved,
       playChord, playVoicing, resetNavigator,

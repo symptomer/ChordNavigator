@@ -57,10 +57,18 @@ export default function AnalyzeTab() {
         Alert.alert('오늘 AI 분석 사용량을 다 썼어요', '내일 다시 시도하거나 규칙 기반 분석을 사용하세요');
         return;
       }
+      // AI 서버 혼잡(Gemini 429/503): 규칙 기반 분석으로 자동 폴백 → 사용자는 결과를 받음
+      if (data.error === 'ai_busy') {
+        runLocal();
+        Alert.alert('AI가 잠시 혼잡해요', 'AI 대신 규칙 기반 분석 결과를 보여드릴게요. 잠시 후 다시 시도하면 AI 분석이 됩니다.');
+        return;
+      }
       if (data.error) throw new Error(data.message || data.error);
       setResults({ type: 'ai', original: progInput, json: data });
     } catch (e) {
-      Alert.alert('AI 분석 실패', e.message + '\n\n규칙 기반 분석을 사용해보세요');
+      // 네트워크 등 예기치 못한 오류: raw 메시지 노출 대신 규칙 기반으로 폴백
+      runLocal();
+      Alert.alert('AI 분석을 불러오지 못했어요', '대신 규칙 기반 분석 결과를 보여드릴게요. 네트워크를 확인하고 다시 시도해 주세요.');
     } finally { setLoading(false); }
   }
 

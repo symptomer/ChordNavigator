@@ -102,7 +102,10 @@ async function callGemini(userMsg: string, env: Env): Promise<string> {
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`gemini ${res.status}: ${errText.slice(0, 300)}`);
+    console.log(`gemini ${res.status}: ${errText.slice(0, 300)}`); // 원문은 로그에만
+    // 429(할당량/레이트), 503(과부하)는 "잠시 혼잡" 케이스로 분류 → 앱에서 친절히 안내
+    if (res.status === 429 || res.status === 503) throw new Error("upstream_busy");
+    throw new Error("upstream_error");
   }
   const data: any = await res.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -148,7 +151,11 @@ export default {
         headers: { "content-type": "application/json" },
       });
     } catch (e: any) {
-      return json({ error: "ai_failed", message: String(e?.message ?? e) }, 502);
+      const msg = String(e?.message ?? e);
+      // Gemini 혼잡(429/503): 앱이 규칙 기반 분석으로 자동 폴백하도록 신호
+      if (msg === "upstream_busy")
+        return json({ error: "ai_busy", message: "AI 서버가 잠시 혼잡합니다" }, 503);
+      return json({ error: "ai_failed", message: "AI 분석에 실패했습니다" }, 502);
     }
   },
 };

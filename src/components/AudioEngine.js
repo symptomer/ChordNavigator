@@ -61,6 +61,7 @@ function flushPending() {
 
 function unlock() {
   var c = getCtx();
+  loadGuitarSamples(); // 어쿠스틱 기타 샘플 미리 로드 (준비 전엔 합성음 폴백)
   var sil = document.getElementById('sil');
   if (sil) {
     sil.play().then(function() {
@@ -95,6 +96,76 @@ function note2midi(noteName, oct) {
   return idx + (oct + 1) * 12;
 }
 
+// ── 어쿠스틱 기타 샘플(사운드폰트) — 실제 녹음 샘플로 리얼한 기타음 ──────────────
+// MusyngKite acoustic_guitar_steel 의 base64 mp3 샘플을 직접 받아 디코딩.
+// 외부 라이브러리/원격 스크립트 실행 없이 "데이터"만 fetch → 디코딩(App Store 안전).
+// 실패·오프라인이면 GTR.ready=false → 합성 기타(makeGuitarTone)로 자동 폴백.
+var SF_URL  = 'https://cdn.jsdelivr.net/gh/gleitz/midi-js-soundfonts@gh-pages/MusyngKite/acoustic_guitar_steel-mp3.js';
+var SF_GAIN = 0.62; // 샘플 음량 보정 (너무 크면 클리핑 → 빌드 후 조정)
+var GTR = { ready: false, loading: false, buffers: {}, keys: [] };
+
+function noteNameToMidi(n) {
+  var m = n.match(/^([A-G])(#?)(-?\\d+)$/);
+  if (!m) return null;
+  var pc = ({ C:0, D:2, E:4, F:5, G:7, A:9, B:11 })[m[1]] + (m[2] === '#' ? 1 : 0);
+  return pc + (parseInt(m[3], 10) + 1) * 12;
+}
+
+function loadGuitarSamples() {
+  if (GTR.ready || GTR.loading || typeof fetch === 'undefined') return;
+  GTR.loading = true;
+  fetch(SF_URL).then(function(r){ return r.text(); }).then(function(txt){
+    var re = /"([A-G]#?-?\\d+)":\\s*"(data:audio\\/mp3;base64,[^"]+)"/g, m, jobs = [];
+    var c = getCtx();
+    while ((m = re.exec(txt))) {
+      var midi = noteNameToMidi(m[1]);
+      if (midi == null || midi < 36 || midi > 90) continue; // 앱 보이싱 범위만 (메모리 절약)
+      (function(uri, midi){
+        jobs.push(
+          fetch(uri).then(function(r){ return r.arrayBuffer(); }).then(function(ab){
+            return new Promise(function(res){
+              c.decodeAudioData(ab, function(buf){ GTR.buffers[midi] = buf; res(); }, function(){ res(); });
+            });
+          }).catch(function(){})
+        );
+      })(m[2], midi);
+    }
+    return Promise.all(jobs);
+  }).then(function(){
+    GTR.keys = Object.keys(GTR.buffers).map(Number).sort(function(a, b){ return a - b; });
+    GTR.ready = GTR.keys.length > 0;
+    GTR.loading = false;
+  }).catch(function(){ GTR.loading = false; });
+}
+
+function nearestSampleMidi(midi) {
+  var keys = GTR.keys, best = keys[0], bd = 999;
+  for (var i = 0; i < keys.length; i++) {
+    var d = Math.abs(keys[i] - midi);
+    if (d < bd) { bd = d; best = keys[i]; }
+  }
+  return best;
+}
+
+// 샘플 1음 재생 (가장 가까운 샘플을 피치시프트). 준비 안됐으면 false → 폴백.
+function playGuitarSample(midi, when, gain, dur) {
+  if (!GTR.ready) return false;
+  var smid = nearestSampleMidi(midi);
+  var buf = GTR.buffers[smid];
+  if (!buf) return false;
+  var src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.playbackRate.value = Math.pow(2, (midi - smid) / 12); // 최대 1~2반음
+  var g = ctx.createGain();
+  g.gain.setValueAtTime(gain, when);
+  g.gain.setValueAtTime(gain, when + dur * 0.7);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + dur + 0.25); // 부드러운 릴리즈
+  src.connect(g); g.connect(ctx.destination);
+  src.start(when);
+  src.stop(when + dur + 0.3);
+  return true;
+}
+
 /**
  * 코드 보이싱: 루트(옥타브3)부터 위로 쌓는 오름차순 배치
  * ivs: 루트로부터의 실제 반음 인터벌 배열
@@ -103,12 +174,12 @@ function voiceChord(rootName, ivs, bassName) {
   var rootPc = NOTES.indexOf(rootName);
   if (rootPc < 0) return [];
 
-  var freqs = [];
+  var midis = [];
 
   // 슬래시/페달 베이스음: 루트보다 한 옥타브 아래(옥타브2)에 깔아줌
   if (bassName) {
     var bn = FLAT2SHARP[bassName] || bassName;
-    if (NOTES.indexOf(bn) >= 0) freqs.push(midi2f(note2midi(bn, 2)));
+    if (NOTES.indexOf(bn) >= 0) midis.push(note2midi(bn, 2));
   }
 
   var rootMidi = note2midi(rootName, 3); // 루트: C3=48, B3=59
@@ -119,15 +190,17 @@ function voiceChord(rootName, ivs, bassName) {
     // prevMidi 이후에 오는 targetPc 피치클래스의 최소 MIDI 값
     var midi = prevMidi + 1;
     while (midi % 12 !== targetPc) midi++;
-    freqs.push(midi2f(midi));
+    midis.push(midi);
     prevMidi = midi;
   });
 
-  return freqs;
+  return midis; // MIDI 번호 배열 (합성은 midi2f로 변환, 샘플은 그대로 사용)
 }
 
 // ── 기타 음색: 통기타(어쿠스틱 스틸) — 따뜻한 기음 + 약한 배음 + 피크 어택 + 바디 공명 ──
-function makeGuitarTone(f, now, vol) {
+// isBass=true (코드 최저음)이면: 옥타브 아래 사인 서브 + 저역 바디 강조 + 긴 울림
+//   → 베이스 하강/페달 라인이 피아노처럼 또렷하게 들리도록.
+function makeGuitarTone(f, now, vol, isBass) {
   var o1 = ctx.createOscillator(); // 기음 (따뜻한 triangle)
   var o2 = ctx.createOscillator(); // 현 광택 (약한 sawtooth)
   var o3 = ctx.createOscillator(); // 미세 디튠 유니즌 (현 울림)
@@ -137,41 +210,55 @@ function makeGuitarTone(f, now, vol) {
   o1.frequency.value = f;
   o2.frequency.value = f;
   o3.frequency.value = f * 1.004;
-  var o2g = ctx.createGain(); o2g.gain.value = 0.32; // 배음 양 줄여 부드럽게
+  // 광택(배음): 베이스는 탁하지 않게 줄이고, 일반음은 어쿠스틱 스틸 특유로 살짝 밝게
+  var o2g = ctx.createGain(); o2g.gain.value = isBass ? 0.2 : 0.38;
   var o3g = ctx.createGain(); o3g.gain.value = 0.5;
 
   // 피킹 직후 밝게 → 점점 따뜻하게 닫히는 로우패스
   var lpf = ctx.createBiquadFilter();
   lpf.type = 'lowpass';
-  lpf.frequency.setValueAtTime(Math.min(f * 8, 5500), now);
+  lpf.frequency.setValueAtTime(isBass ? Math.min(f * 6, 2800) : Math.min(f * 9, 6500), now);
   lpf.frequency.exponentialRampToValueAtTime(Math.min(f * 3, 2200), now + 0.18);
   lpf.frequency.exponentialRampToValueAtTime(Math.min(f * 1.8, 1200), now + 1.2);
   lpf.Q.value = 0.7;
 
-  // 바디 공명 (저역 통울림 + 미드)
+  // 바디 공명 (저역 통울림 + 미드) — 베이스음은 저역을 더 끌어올림
   var body1 = ctx.createBiquadFilter();
-  body1.type = 'peaking'; body1.frequency.value = 110; body1.Q.value = 1.0; body1.gain.value = 5;
+  body1.type = 'peaking'; body1.frequency.value = 100; body1.Q.value = 1.0; body1.gain.value = isBass ? 9 : 5;
   var body2 = ctx.createBiquadFilter();
-  body2.type = 'peaking'; body2.frequency.value = 240; body2.Q.value = 1.2; body2.gain.value = 3;
+  body2.type = 'peaking'; body2.frequency.value = 230; body2.Q.value = 1.2; body2.gain.value = 3;
 
   var g = ctx.createGain();
-  var v = vol * 0.085;
+  var v = vol * (isBass ? 0.115 : 0.085); // 베이스 기본 음량 ↑
+  var tail = isBass ? 3.4 : 2.6;          // 베이스는 더 길게 울림
   g.gain.setValueAtTime(0.001, now);
-  g.gain.linearRampToValueAtTime(v, now + 0.005);           // 5ms 어택
-  g.gain.exponentialRampToValueAtTime(v * 0.5, now + 0.12); // 초기 빠른 감쇠
-  g.gain.exponentialRampToValueAtTime(v * 0.18, now + 0.8);
-  g.gain.exponentialRampToValueAtTime(0.001, now + 2.6);    // 긴 자연 감쇠
+  g.gain.linearRampToValueAtTime(v, now + 0.005);                   // 5ms 어택
+  g.gain.exponentialRampToValueAtTime(v * 0.5, now + 0.12);         // 초기 빠른 감쇠
+  g.gain.exponentialRampToValueAtTime(v * 0.18, now + (isBass ? 1.1 : 0.8));
+  g.gain.exponentialRampToValueAtTime(0.001, now + tail);          // 긴 자연 감쇠
 
   o1.connect(lpf);
   o2.connect(o2g); o2g.connect(lpf);
   o3.connect(o3g); o3g.connect(lpf);
   lpf.connect(body1); body1.connect(body2); body2.connect(g);
   g.connect(ctx.destination);
-  o1.start(now); o1.stop(now + 2.7);
-  o2.start(now); o2.stop(now + 2.7);
-  o3.start(now); o3.stop(now + 2.7);
+  o1.start(now); o1.stop(now + tail + 0.1);
+  o2.start(now); o2.stop(now + tail + 0.1);
+  o3.start(now); o3.stop(now + tail + 0.1);
 
-  // 피크 어택 노이즈 (현 뜯는 소리, 아주 짧게)
+  // 베이스 강조: 옥타브 아래 사인 서브 레이어 → 저음의 무게감/하강 라인이 또렷
+  if (isBass) {
+    var sub = ctx.createOscillator(); sub.type = 'sine'; sub.frequency.value = f / 2;
+    var subg = ctx.createGain();
+    var sv = vol * 0.07;
+    subg.gain.setValueAtTime(0.001, now);
+    subg.gain.linearRampToValueAtTime(sv, now + 0.02);
+    subg.gain.exponentialRampToValueAtTime(0.001, now + 2.6);
+    sub.connect(subg); subg.connect(ctx.destination);
+    sub.start(now); sub.stop(now + 2.7);
+  }
+
+  // 피크 어택 노이즈 (현 뜯는 소리, 아주 짧게) — 어쿠스틱 피킹감 위해 일반음은 살짝 강하게
   var bufSize = Math.floor(ctx.sampleRate * 0.012);
   var nBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
   var nd = nBuf.getChannelData(0);
@@ -180,7 +267,7 @@ function makeGuitarTone(f, now, vol) {
   var nbp = ctx.createBiquadFilter();
   nbp.type = 'bandpass'; nbp.frequency.value = Math.min(f * 3, 3000); nbp.Q.value = 0.8;
   var ng = ctx.createGain();
-  ng.gain.setValueAtTime(vol * 0.05, now);
+  ng.gain.setValueAtTime(vol * (isBass ? 0.04 : 0.06), now);
   ng.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
   ns.connect(nbp); nbp.connect(ng); ng.connect(ctx.destination);
   ns.start(now); ns.stop(now + 0.035);
@@ -246,33 +333,42 @@ function makePianoTone(f, now, vol) {
   ns.stop(now + 0.025);
 }
 
+// ── 코드 발음 (피아노=합성, 기타=샘플 우선·합성 폴백) ────────────────
+// midis: 저음→고음 순서. 스트럼/아르페지오 타이밍·베이스 강조 공통 처리.
+function playChordNotes(midis, vol, isPiano, isArp, arpBeatMs) {
+  playWhenReady(function() {
+    var now = ctx.currentTime;
+    var strumMs = isArp ? (arpBeatMs || 200) / midis.length / 1000 : isPiano ? 0 : 0.038;
+    var useSF = !isPiano && GTR.ready; // 기타 + 샘플 준비됨 → 리얼 샘플
+    midis.forEach(function(mid, i) {
+      var t = now + i * strumMs;
+      if (isPiano) {
+        var bassEmph = i === 0 ? 1.55 : (i === 1 ? 1.05 : 0.9);
+        makePianoTone(midi2f(mid), t, vol * bassEmph);
+      } else if (useSF) {
+        // 어쿠스틱 기타 샘플 — 최저음 게인 강조로 베이스 또렷
+        var isBass = i === 0;
+        var gain = vol * (isBass ? 1.15 : (i === 1 ? 0.82 : 0.66)) * SF_GAIN;
+        var dur  = isArp ? (arpBeatMs ? arpBeatMs / 1000 : 0.5) : 2.2;
+        playGuitarSample(mid, t, gain, dur);
+      } else {
+        var gtrEmph = i === 0 ? 1.0 : (i === 1 ? 0.92 : 0.82);
+        makeGuitarTone(midi2f(mid), t, vol * gtrEmph * (isArp ? 1.1 : 1), i === 0);
+      }
+    });
+  });
+}
+
 // ── 코드 스케줄 ─────────────────────────────────────────────────
 function scheduleChord(note, variant, quality, vol, instr, arpBeatMs, bass) {
   var vk = variant || (quality === 'min' ? 'm' : quality === 'dim' ? '\u00b0' : '');
   var ivs = VAR_IV[vk] || [0, 4, 7];
 
-  var freqs = voiceChord(note, ivs, bass);
-  if (!freqs.length) return;
-
-  playWhenReady(function() {
-    var now = ctx.currentTime;
-    var isArp = (instr === 'guitar-arp' || instr === 'piano-arp');
-    var isPiano = (instr === 'piano' || instr === 'piano-arp');
-    var strumMs = isArp
-      ? (arpBeatMs || 200) / freqs.length / 1000
-      : isPiano ? 0 : 0.038;
-
-    freqs.forEach(function(f, i) {
-      var t = now + i * strumMs;
-      // 최저음(베이스) 강조 → 하강/진행 베이스가 또렷하게 들림
-      var bassEmph = i === 0 ? 1.55 : (i === 1 ? 1.05 : 0.9);
-      if (isPiano) {
-        makePianoTone(f, t, vol * bassEmph);
-      } else {
-        makeGuitarTone(f, t, vol * bassEmph * (isArp ? 1.1 : 1));
-      }
-    });
-  });
+  var midis = voiceChord(note, ivs, bass);
+  if (!midis.length) return;
+  var isArp = (instr === 'guitar-arp' || instr === 'piano-arp');
+  var isPiano = (instr === 'piano' || instr === 'piano-arp');
+  playChordNotes(midis, vol, isPiano, isArp, arpBeatMs);
 }
 
 // ── 명시적 보이싱 스케줄 ────────────────────────────────────────
@@ -280,27 +376,9 @@ function scheduleChord(note, variant, quality, vol, instr, arpBeatMs, bass) {
 // 화면에 표시된 운지(기타 프렛/피아노 건반)에서 계산해 넘기므로 소리=그림.
 function scheduleVoicing(midis, vol, instr, arpBeatMs) {
   if (!midis || !midis.length) return;
-  var freqs = midis.map(midi2f);
-
-  playWhenReady(function() {
-    var now = ctx.currentTime;
-    var isArp = (instr === 'guitar-arp' || instr === 'piano-arp');
-    var isPiano = (instr === 'piano' || instr === 'piano-arp');
-    var strumMs = isArp
-      ? (arpBeatMs || 200) / freqs.length / 1000
-      : isPiano ? 0 : 0.038;
-
-    freqs.forEach(function(f, i) {
-      var t = now + i * strumMs;
-      // 최저음(베이스) 강조 → 하강/진행 베이스가 또렷하게 들림
-      var bassEmph = i === 0 ? 1.55 : (i === 1 ? 1.05 : 0.9);
-      if (isPiano) {
-        makePianoTone(f, t, vol * bassEmph);
-      } else {
-        makeGuitarTone(f, t, vol * bassEmph * (isArp ? 1.1 : 1));
-      }
-    });
-  });
+  var isArp = (instr === 'guitar-arp' || instr === 'piano-arp');
+  var isPiano = (instr === 'piano' || instr === 'piano-arp');
+  playChordNotes(midis, vol, isPiano, isArp, arpBeatMs);
 }
 
 function handleMsg(raw) {
@@ -348,7 +426,7 @@ const AudioEngine = forwardRef((props, ref) => {
     <View style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>
       <WebView
         ref={wvRef}
-        source={{ html: AUDIO_HTML }}
+        source={{ html: AUDIO_HTML, baseUrl: 'https://chordnav.local/' }}
         javaScriptEnabled
         allowsInlineMediaPlayback
         mediaPlaybackRequiresUserAction={false}
