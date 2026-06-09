@@ -1,12 +1,26 @@
 # ChordNavigator — 다음 세션 작업 계획
 
 **프로젝트 경로:** `/Users/symptomer/Documents/ChordNavigator`
-**최근 작업:** 2026-06-08 (9차) — ✅✅✅ **1.0.1 (빌드 14) 심사 통과 = App Store 출시 완료!**
-**현재 브랜치:** main · **GitHub:** https://github.com/symptomer/ChordNavigator
+**최근 작업:** 2026-06-10 (10차) — **1.0.2 코드 완료·EAS 빌드 큐 등록·Worker 배포함. 심사 제출은 다음 주 예정.**
+**현재 브랜치:** `release/1.0.2`(커밋 a7feea0) · **GitHub:** https://github.com/symptomer/ChordNavigator · main 미머지
 **ascAppId** `6772862881` · **로그인** appstoreconnect.apple.com (Apple ID: KANG DOSEONG / symptomers@naver.com)
 
-## ✅ 현재 상태: 1.0.1 출시됨 (2026-06-08 심사 통과)
-1.0.1 = 보이스리딩·소리/운지 정합성·음색 + AI 백엔드(Worker+Gemini, **사용자 API키 입력 제거**) + AnalyzeTab 진행 자동채움 + 홈 상시 프리미엄 버튼 + ASO 키워드 강화. **앱 정상 동작 확인 완료.**
+## 🟡 현재 상태: 1.0.2 빌드 중 (2026-06-10)
+- **1.0.0 / 1.0.1 출시됨.** 1.0.2 = 아래 11개 수정(기타 실제샘플·박자표·마디복사·undo·장단토글·박자/MIDI버그·AI429폴백 등). app.json `version` 1.0.2.
+- **EAS 프로덕션 빌드 큐 등록됨** — 빌드 ID `75193a27-153b-44b8-94c3-f8cdeffbde9e`, 로그: https://expo.dev/accounts/symptomer/projects/ChordNavigator/builds/75193a27-153b-44b8-94c3-f8cdeffbde9e (빌드#15, autoIncrement).
+- **Worker 배포 완료** — AI 429/503 친절 폴백 라이브(Version d67cda45). 앱 빌드와 별개로 즉시 반영됨.
+- **⏳ 일정:** ① **내일** = Gemini 결제 활성화(AI 분석 무료할당량 문제 해결). ② **다음 주** = `eas submit` → ASC 1.0.2 생성·빌드연결·새기능입력 → 심사 제출.
+- ⚠️ `release/1.0.2`는 아직 main에 머지/푸시 안 됨(분류기가 main 직접 푸시 차단). 머지 또는 푸시는 사용자 승인 후.
+
+### 📝 1.0.2 심사 제출용 "이 버전의 새로운 기능" 초안 (ASC 특수문자 거부 → 일반문자만)
+```
+- 실제 어쿠스틱 기타 음색으로 개선했습니다.
+- 박자표 3/4, 4/4 선택과 마디별 정확한 박자 재생을 추가했습니다.
+- 마디 복사, 한 단계 되돌리기 버튼을 추가했습니다.
+- 장조와 단조를 바로 전환하는 토글(차용 코드)을 추가했습니다.
+- 재생 중 운지를 상단에 고정해 보기 편하게 했습니다.
+- 코드 진행 박자와 MIDI 내보내기 오류를 수정했습니다.
+```
 
 ---
 
