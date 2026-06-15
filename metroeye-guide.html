@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0">
+<title>메트로눈 · MetroEye 사용설명서</title>
+<style>
+  :root {
+    --bg:#0a0a12; --card:#14141f; --border:#24243200; --border2:#242432;
+    --text:#e8e8f0; --text2:#9496a8; --accent:#e8b84b; --blue:#4b9ee8; --green:#4ade80;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;
+    background:var(--bg); color:var(--text); font-size:15px; line-height:1.7;
+    padding:16px; max-width:720px; margin:0 auto;
+  }
+  .app-name { font-size:13px; color:var(--accent); letter-spacing:2px; text-transform:uppercase; margin-top:8px; }
+  h1 { font-size:23px; color:var(--accent); border-bottom:2px solid var(--accent); padding-bottom:10px; margin:6px 0 14px; }
+  h2 { font-size:18px; color:var(--blue); margin:24px 0 10px; }
+  h3 { font-size:15px; color:var(--green); margin:16px 0 8px; }
+  p { margin-bottom:10px; }
+  ul,ol { padding-left:20px; margin-bottom:10px; }
+  li { margin-bottom:5px; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; font-size:13px; }
+  th { background:var(--card); color:var(--accent); padding:8px 10px; border:1px solid var(--border2); text-align:left; }
+  td { padding:7px 10px; border:1px solid var(--border2); color:var(--text); }
+  tr:nth-child(even) td { background:rgba(255,255,255,0.03); }
+  blockquote { border-left:3px solid var(--accent); padding:8px 14px; background:rgba(232,184,75,0.08); border-radius:0 6px 6px 0; margin:10px 0; color:var(--text2); }
+  hr { border:none; border-top:1px solid var(--border2); margin:22px 0; }
+  strong { color:var(--accent); }
+  .lang-div { margin-top:56px; }
+  footer { margin-top:48px; padding-top:20px; border-top:1px solid var(--border2); font-size:13px; color:#55556a; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+
+<p class="app-name">MetroEye · 메트로눈</p>
+<h1>사용설명서</h1>
+
+<h2>1. 어떤 앱인가요?</h2>
+<p><strong>박자를 '눈'으로 보여주는 메트로놈</strong>입니다. 화면 중앙의 눈이 매 박자마다 시선을 움직이고 첫박에 깜빡여, 소리뿐 아니라 눈으로도 타이밍을 잡을 수 있어요.</p>
+<ul>
+<li>악기 연습 박자 맞추기</li>
+<li>곡 구조에 따라 빠르기가 바뀌는 연습</li>
+<li>무대·합주에서 시각으로 박자 확인</li>
+</ul>
+
+<h2>2. 처음 1분 — 빠른 시작</h2>
+<ol>
+<li>슬라이더나 <strong>+ / −</strong> 로 원하는 BPM을 맞춥니다.</li>
+<li><strong>현재 템포</strong> 버튼을 눌러 시작합니다.</li>
+<li>눈이 박자를 따라 움직이고 소리가 납니다.</li>
+<li><strong>STOP</strong> 으로 정지.</li>
+</ol>
+<blockquote>박자를 모를 땐, 재생 중 <strong>TAP</strong> 버튼을 원하는 빠르기로 두드리면 그 속도로 즉시 맞춰집니다(탭 템포).</blockquote>
+
+<h2>3. 두 가지 시작 방식</h2>
+<table>
+<thead><tr><th>모드</th><th>설명</th></tr></thead>
+<tbody>
+<tr><td><strong>현재 템포</strong></td><td>지금 화면의 BPM·박자로 바로 시작. 탭 템포로 즉석에서 빠르기 잡기.</td></tr>
+<tr><td><strong>프리셋 템포</strong></td><td>미리 만들어 둔 여러 구간(빠르기)의 묶음으로 연주.</td></tr>
+</tbody>
+</table>
+
+<h2>4. 프리셋 — 곡에 맞춰 빠르기 바꾸기</h2>
+<p>한 곡 안에서 빠르기·박자가 바뀔 때 쓰는 기능입니다. 정지 화면 아래 <strong>템포 프리셋</strong>에서 만듭니다.</p>
+<h3>만들기</h3>
+<ul>
+<li><strong>+</strong> 로 새 프리셋 추가 → 이름 입력</li>
+<li>BPM·박자를 정하고 <strong>추가</strong> 로 구간(스텝)을 쌓습니다</li>
+<li><strong>프리셋 저장</strong></li>
+</ul>
+<h3>연주 중 조작 (핵심)</h3>
+<table>
+<thead><tr><th>동작</th><th>결과</th></tr></thead>
+<tbody>
+<tr><td><strong>TAP 한 번</strong></td><td>마디 끝에서 다음 구간(템포)으로 자연스럽게 전환</td></tr>
+<tr><td><strong>TAP 더블탭</strong></td><td>정지(멈춤)</td></tr>
+<tr><td><strong>정지 중 TAP</strong></td><td>다음 구간의 <strong>첫박부터</strong> 바로 시작</td></tr>
+</tbody>
+</table>
+<blockquote>현재 재생 중인 구간은 금색으로 표시되고, 전환 대기 중인 구간은 점멸합니다.</blockquote>
+
+<h2>5. 세부 설정</h2>
+<ul>
+<li><strong>박자표</strong>: 2/4, 3/4, 4/4, 5/4, 6/8, 7/4</li>
+<li><strong>세분</strong>: 4분음, 8분음, 3연음, 16분음</li>
+<li><strong>볼륨</strong>: 클릭음 크기 조절</li>
+</ul>
+
+<h2>6. 자주 묻는 질문</h2>
+<p><strong>Q. 인터넷이 필요한가요?</strong><br>아니요. 완전 오프라인으로 동작합니다.</p>
+<p><strong>Q. 다른 언어로 쓸 수 있나요?</strong><br>네. 기기 언어에 맞춰 11개 언어(한국어·영어·일본어·중국어·스페인어·프랑스어·독일어·이탈리아어·포르투갈어·러시아어)로 자동 표시됩니다.</p>
+<p><strong>Q. 유료인가요?</strong><br>아니요. 무료이며 광고도, 회원가입도 없습니다.</p>
+<p><strong>Q. 만든 프리셋은 어디에 저장되나요?</strong><br>기기 안에만 저장됩니다(외부 전송 없음). 앱을 삭제하면 함께 사라집니다.</p>
+
+<div class="lang-div"></div>
+<p class="app-name">MetroEye</p>
+<h1>User Guide</h1>
+
+<h2>1. What is it?</h2>
+<p><strong>A metronome you can see.</strong> An eye at the center follows every beat and blinks on the downbeat, so you catch the timing with your eyes as well as your ears.</p>
+
+<h2>2. Quick start (1 min)</h2>
+<ol>
+<li>Set the BPM with the slider or <strong>+ / −</strong>.</li>
+<li>Tap <strong>Current Tempo</strong> to start.</li>
+<li>The eye moves with the beat and the click plays.</li>
+<li>Tap <strong>STOP</strong> to stop.</li>
+</ol>
+<blockquote>While playing, tap the <strong>TAP</strong> button at your desired speed to match that tempo instantly (tap tempo).</blockquote>
+
+<h2>3. Two ways to start</h2>
+<ul>
+<li><strong>Current Tempo</strong> — start with the on-screen BPM; set any speed on the fly with tap tempo.</li>
+<li><strong>Preset Tempo</strong> — play a saved sequence of tempo sections.</li>
+</ul>
+
+<h2>4. Presets — change tempo within a piece</h2>
+<p>Build under <strong>Tempo Preset</strong> on the stopped screen: tap <strong>+</strong>, name it, set BPM/time signature, tap <strong>Add</strong> for each step, then <strong>Save Preset</strong>.</p>
+<table>
+<thead><tr><th>Action</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td><strong>Single TAP</strong></td><td>Switch to the next section at the end of the bar</td></tr>
+<tr><td><strong>Double-tap TAP</strong></td><td>Stop</td></tr>
+<tr><td><strong>TAP while stopped</strong></td><td>Start the next tempo from beat one</td></tr>
+</tbody>
+</table>
+
+<h2>5. Settings</h2>
+<ul>
+<li><strong>Time signatures</strong>: 2/4, 3/4, 4/4, 5/4, 6/8, 7/4</li>
+<li><strong>Subdivisions</strong>: quarter, eighth, triplet, sixteenth</li>
+<li><strong>Volume</strong></li>
+</ul>
+
+<h2>6. FAQ</h2>
+<p><strong>Q. Does it need internet?</strong><br>No — it works fully offline.</p>
+<p><strong>Q. Other languages?</strong><br>Yes, 11 languages, auto-selected by your device language.</p>
+<p><strong>Q. Is it free?</strong><br>Yes — free, no ads, no sign-up.</p>
+
+<footer>문의 / Contact: <a href="mailto:symptomers@naver.com">symptomers@naver.com</a> &nbsp;·&nbsp; &copy; 2026 MetroEye</footer>
+</body>
+</html>
