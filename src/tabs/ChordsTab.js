@@ -13,6 +13,10 @@ import { exportMIDI } from '../utils/midiUtils';
 import { SONG_PATTERNS } from '../data/songPatterns';
 import GuitarDiagram from '../components/GuitarDiagram';
 import PianoDiagram  from '../components/PianoDiagram';
+import Purchases from '../utils/purchases';
+
+// AI GPS 백엔드 (Cloudflare Worker) — API 키는 서버에만, 앱엔 없음
+const WORKER_URL = 'https://chordnavigator-ai.symptomer.workers.dev';
 
 // 도수별 역할 레이블 (GPS 카드용)
 const CHORD_ROLE = {
@@ -178,7 +182,7 @@ function getLocalGPSRoutes(curChord, chords, selGenre, levelDef, mode) {
 }
 
 // ── GPS 루트 API 호출 ────────────────────────────────────────────
-async function fetchGPSRoutes({ progression, curChord, activeKey, selMode, selLevel, selGenre, apiKey, chords }) {
+async function fetchGPSRoutes({ progression, curChord, activeKey, selMode, selLevel, selGenre, appUserId, chords }) {
   const levelStr  = selLevel === 'beginner' ? '입문' : selLevel === 'mid' ? '중급' : '재즈';
   const genreName = GENRE_PROGS[selGenre]?.name || '팝';
 
@@ -212,39 +216,27 @@ async function fetchGPSRoutes({ progression, curChord, activeKey, selMode, selLe
     return bestScore >= 2 ? (GENRE_KO[best] || best) : null;
   })();
 
-  const prompt = `너는 음악가를 위한 코드 진행 GPS야. 현재 상황을 보고 앞으로 가능한 루트 3가지를 제시해.
-
-키: ${activeKey} ${selMode === 'major' ? '장조' : '단조'}
-레벨: ${levelStr} (입문=기본코드, 중급=7th코드, 재즈=텐션코드)
-선호 장르: ${genreName}${detectedG ? ` (진행 분석: ${detectedG} 스타일 감지됨)` : ''}
-
-지금까지 진행: ${progNames}
-도수 패턴: ${progDeg}
-현재 코드: ${curChord.name}
-
-"${curChord.name}" 다음에 이어갈 루트 3가지 (각 3~4코드). 도수 흐름의 자연스러움과 레벨을 고려할 것.
-JSON만 응답:
-{"routes":[{"genre":"장르","mood":"분위기","chords":["코드1","코드2","코드3"],"tip":"한 줄 팁"},{"genre":"장르2","mood":"분위기2","chords":["코드1","코드2","코드3","코드4"],"tip":"팁"},{"genre":"장르3","mood":"분위기3","chords":["코드1","코드2","코드3"],"tip":"팁"}]}`;
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  // AI GPS = Cloudflare Worker(Gemini) 프록시. 프리미엄 검증·API키는 서버에.
+  const res = await fetch(WORKER_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model:      'claude-haiku-4-5-20251001',
-      max_tokens: 500,
-      messages:   [{ role: 'user', content: prompt }],
+      task: 'gps',
+      appUserId,
+      curChord: curChord.name,
+      progression: progNames,
+      progDeg,
+      detectedGenre: detectedG,
+      genre: genreName,
+      level: levelStr,
+      key: activeKey,
+      mode: selMode,
     }),
   });
 
   const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
-  const text = data.content[0].text.replace(/```json|```/g, '').trim();
-  return JSON.parse(text).routes;
+  if (data.error) throw new Error(data.error);   // not_premium / rate_limited / ai_failed → 로컬 루트 유지
+  return data.routes;
 }
 
 // 코드 품질 → 인터벌 (보이스리딩 운지용)
@@ -558,7 +550,6 @@ export default function ChordsTab({ onTranspose }) {
     saved, loadSaved, saveProg, deleteSaved,
     maxProg, setMaxProg,
     measureBreaks, setMeasureBreaks,
-    apiKey,
   } = useApp();
 
   const { isPremium, showPaywall } = usePurchase();
@@ -634,6 +625,39 @@ export default function ChordsTab({ onTranspose }) {
     }
   }
 
+  // 장·단 전환: 현재 코드의 3도를 뒤집어 마이너↔메이저 (Cmaj7↔Cm7, C↔Cm 등)
+  function flipCurChordMinor() {
+    if (!curChord) { Alert.alert('먼저 코드를 선택하세요'); return; }
+    const q = curChord.quality;
+    if (q !== 'maj' && q !== 'min') {
+      Alert.alert('전환할 수 없어요', '이 코드 종류(감·서스펜디드 등)는 장/단 전환 대상이 아니에요.');
+      return;
+    }
+    const toMin  = q === 'maj';
+    const TO_MIN = { '': 'm', 'maj7': 'm7', 'maj9': 'm9', '6': 'm6', '7': 'm7', '9': 'm9', 'add9': 'm', '13': 'm11' };
+    const TO_MAJ = { 'm': '', 'm7': 'maj7', 'm9': 'maj9', 'm6': '6', 'm11': 'm9', 'mMaj7': 'maj7' };
+    const nv = (toMin ? TO_MIN : TO_MAJ)[curVar || ''];
+    if (nv == null) {
+      Alert.alert('전환할 수 없어요', `이 코드 종류는 대응하는 ${toMin ? '마이너' : '메이저'} 형태가 없어요.`);
+      return;
+    }
+    const newQual = toMin ? 'min' : 'maj';
+    setCurChord({ name: curChord.note + nv, note: curChord.note, quality: newQual });
+    setCurVar(nv);
+    playChord(curChord.note, nv, newQual, 60000 / bpm);
+  }
+
+  // "단조 전환" 버튼 → 적용 범위 선택 (이 코드만 / 키 전체)
+  function onMinorConvert() {
+    const isMin = selMode === 'minor';
+    const curLabel = curChord ? ` (${flatChordName(curChord.note + (curVar || ''), activeKey, selMode)})` : '';
+    Alert.alert('장·단 전환', '무엇을 바꿀까요?', [
+      { text: `이 코드만${curLabel}`, onPress: flipCurChordMinor },
+      { text: isMin ? '키 전체 → 장조' : '키 전체 → 단조', onPress: () => setSelMode(isMin ? 'major' : 'minor') },
+      { text: '취소', style: 'cancel' },
+    ]);
+  }
+
   function selectVariant(note, quality, v) {
     const name = note + (v || '');
     setCurChord({ name, note, quality });
@@ -684,18 +708,19 @@ export default function ChordsTab({ onTranspose }) {
     const localRoutes = getLocalGPSRoutes(curChord, chords, selGenre, levelDef, selMode);
     setGpsRoutes(localRoutes);
 
-    // API 키 + 프리미엄 있으면 AI 루트로 교체 (debounce)
-    if (!apiKey || !isPremium) return;
+    // 프리미엄이면 AI 루트로 교체 (Worker+Gemini, debounce)
+    if (!isPremium) return;
     if (gpsTimerRef.current) clearTimeout(gpsTimerRef.current);
     gpsTimerRef.current = setTimeout(async () => {
       setGpsLoading(true);
       try {
+        const appUserId = await Purchases.getAppUserID();
         const aiRoutes = await fetchGPSRoutes({
-          progression, curChord, activeKey, selMode, selLevel, selGenre, apiKey, chords,
+          progression, curChord, activeKey, selMode, selLevel, selGenre, appUserId, chords,
         });
         if (aiRoutes?.length) setGpsRoutes(aiRoutes);
       } catch (_) {
-        // API 실패 시 로컬 루트 유지
+        // 실패 시 로컬 루트 유지
       } finally {
         setGpsLoading(false);
       }
@@ -1418,6 +1443,9 @@ export default function ChordsTab({ onTranspose }) {
         <TouchableOpacity style={styles.smBtn} onPress={onTranspose}>
           <Text style={styles.smBtnText}>🎵 전조</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.smBtn} onPress={onMinorConvert}>
+          <Text style={styles.smBtnText}>🎼 장·단</Text>
+        </TouchableOpacity>
       </View>
 
       {/* ── 다이아토닉 코드 버튼 ── */}
@@ -1474,7 +1502,7 @@ export default function ChordsTab({ onTranspose }) {
             <Text style={styles.gpsTitle}>GPS 루트</Text>
             {gpsLoading
               ? <ActivityIndicator size="small" color={COLORS.blue} style={{ marginLeft: 6 }} />
-              : <Text style={styles.gpsSrc}>{apiKey && isPremium ? 'AI' : apiKey && !isPremium ? '🔒 AI' : '규칙'}</Text>
+              : <Text style={styles.gpsSrc}>{isPremium ? 'AI' : '🔒 AI'}</Text>
             }
           </View>
           {gpsRoutes.length > 0 && (

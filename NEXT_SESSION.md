@@ -1,9 +1,44 @@
 # ChordNavigator — 다음 세션 작업 계획
 
 **프로젝트 경로:** `/Users/symptomer/Documents/ChordNavigator`
-**최근 작업:** 2026-06-07 세션 (9차) — ✅ GitHub 푸시 완료 + EAS 1.0.1 프로덕션 빌드 시작 (8차 작업 배포 착수)
-**현재 브랜치:** main
-**GitHub:** https://github.com/symptomer/ChordNavigator
+**최근 작업:** 2026-06-08 (9차) — ✅✅✅ **1.0.1 (빌드 14) 심사 통과 = App Store 출시 완료!** + 하네스 검증
+**현재 브랜치:** main · **GitHub:** https://github.com/symptomer/ChordNavigator
+**ascAppId** `6772862881` · 로그인 appstoreconnect.apple.com (KANG DOSEONG / symptomers@naver.com)
+
+> ⚠️ 이 문서는 한 번 `06cc4be` 커밋 상태로 되돌려진 적 있음(2026-06-08). 아래 상단 블록이 최신 진실. 하단 옛 섹션(내일 할 일=제출 등)은 이미 완료된 이력이니 무시.
+
+## ✅ 현재 상태: 1.0.1 출시됨 (2026-06-08 심사 통과)
+- 1.0.1 = 보이스리딩·소리/운지 정합성·음색 + AI백엔드(Worker+Gemini, **사용자 API키 입력 제거**) + AnalyzeTab 진행 자동채움 + 홈 상시 프리미엄 버튼 + ASO 키워드 강화. **정상 동작 확인.**
+- 빌드 이력: #13(`008f07d4`) 만들었다 UX개선 추가로 #14(`ac796f8f`) 재빌드→제출. 커밋 `06cc4be`까지 푸시.
+- "구독/잠금 안보임"=개발자 본인 프리미엄(정상)·친구=StoreKit캐시(삭제재설치로 해결). "API키 물어봄"=라이브 #12가 AI백엔드 전환 前 옛빌드라 그런 것→#14에서 해소.
+
+---
+
+# 🎯 다음 세션 할 일 — 1.0.2 수정사항
+
+> **새 세션은 여기부터.** 작업 흐름: 코드 수정 → 커밋·푸시 → `eas build -p ios --profile production`(autoIncrement, build#15+) → `eas submit`(사용자 승인 필요) → ASC 버전 1.0.2 생성·빌드연결·변경사항입력 → 제출.
+
+### 🆕 사용자 요청 수정사항 (2026-06-08 코드완료·미커밋, 빌드#15 대기)
+- **[✅코드완료] 기타 음색 → 스틸기타(밝게)** — `AudioEngine.js` `makeGuitarTone`: 기음 triangle→sawtooth, 로우패스 열기(고음유지), 하이셸프 +6dB@3200, 바디 저역부스트↓, 픽어택↑. 사용자 "너무 부드럽다→스틸기타 같은 소리" 요청. **귀로만 검증→TestFlight#15 필요.** 더 조절: `bright.gain`, `lpf`램프, `o1g/o2g`, 픽 `ng.gain`.
+- **[✅완료] AI GPS 살리기(A)** — Worker `task:'gps'` 분기(GPS 프롬프트+`routes`스키마) 추가 → **wrangler deploy 배포됨**(Version `392bdbec`). 앱 `ChordsTab.fetchGPSRoutes`를 Anthropic 직접호출→Worker(Gemini)로 전환, `apiKey` 완전 제거, `Purchases.getAppUserID()` 사용. 검증: GPS 400/403 정상, 분석 경로 하위호환 유지. **실제 생성은 프리미엄+빌드#15에서.**
+- (참고) AI 분석 백엔드도 정상(Worker 라이브·Gemini코드 정상). 라이브 #12는 옛 API키 방식이라 폰에서 AI 테스트 불가 → #15 TestFlight로.
+- **다음: 커밋 → EAS 빌드 #15 → TestFlight로 기타소리+AI GPS+AI분석 실기 확인.**
+
+### 🧹 정리 후보 (2026-06-08 하네스 검증으로 확인)
+1. **✅ AI GPS 죽은 코드 → 해결됨(2026-06-08)** — Worker `task:'gps'` 전환+배포, ChordsTab Worker 호출로 교체, apiKey 제거. (위 "사용자 요청 수정사항" 참조.) 빌드#15에서 실동작 확인 남음.
+2. **apiKey 죽은 인프라 잔여 정리** — ChordsTab 쪽은 제거됨. **아직 남음:** `AppContext.js` `apiKey`/`setApiKey`/`loadApiKey`, `HomeScreen.js` `loadApiKey()` 호출(무해하지만 죽은 코드). 정리 검토.
+3. **음색 추가 튜닝** — 사용자 완전 만족 아님. `AudioEngine.js` `makeGuitarTone`/`makePianoTone`/`bassEmph`.
+4. **(선택) 부제(subtitle) ASO 업데이트** — 현재 "기타 코드 진행 & 음악 이론" 유지. 다음 버전에서 `코드 진행 분석·기타 피아노 운지·작곡`(21자) 검토.
+
+### ⚠️ 작업 시 주의 (9차 교훈)
+- `eas submit`·프로덕션 빌드는 자동승인 분류기가 "제출/배포"로 막음 → **사용자 명시 승인** 후 진행.
+- ASC 메타 입력칸은 **특수문자 거부**(♭, • 글머리표, · 가운뎃점) → 변경사항/설명엔 일반 문자(`-`).
+- 라이브 반영은 **새 빌드 필수**(코드만 고치면 스토어 안 바뀜).
+
+### ✅ 하네스 검증 결과 (2026-06-08) — 코드 건전
+- **문법:** src 24개 전 파일 babel 파싱 통과(0 오류, 오늘 수정한 HomeScreen·ManualModal 포함).
+- **기타 운지(`src/data/harness.js`, `cd src/data && node harness.js`):** 228개 검증, **틀린 음(이물질음) 0**, "누락" 94개는 **전부 5도 생략 or 확장코드(m11·13·maj9·9·m9) 정상 축약**(3도·7도 누락 0)→코드 데이터 음악적 정상. 하네스가 "모든 코드톤 필수"로 과엄격일 뿐(원하면 5도생략 허용으로 완화 가능).
+- **보이스리딩:** `voiceLeadSequence`/`pianoVoiceLeadSequence` 실행 정상, 유효 운지 반환. (검증법: babel `@babel/plugin-transform-modules-commonjs`+`plugin-syntax-jsx` require훅으로 musicUtils 로드.)
 
 ---
 

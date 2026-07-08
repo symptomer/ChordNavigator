@@ -83,6 +83,25 @@ function playWhenReady(fn) {
   }
 }
 
+// 마스터 버스: 모든 음을 한 곳에 모아 리미터로 코드 합산 클리핑(깨짐) 방지
+var master = null;
+function getMaster() {
+  if (!master) {
+    var c = getCtx();
+    master = c.createGain();
+    master.gain.value = 0.85;
+    var lim = c.createDynamicsCompressor(); // 피크만 눌러 깨짐 방지(리미터)
+    lim.threshold.value = -8;
+    lim.knee.value = 6;
+    lim.ratio.value = 12;
+    lim.attack.value = 0.003;
+    lim.release.value = 0.25;
+    master.connect(lim);
+    lim.connect(c.destination);
+  }
+  return master;
+}
+
 // MIDI 번호 → 주파수 (A4=69=440Hz 기준)
 function midi2f(midi) {
   return 440 * Math.pow(2, (midi - 69) / 12);
@@ -128,61 +147,69 @@ function voiceChord(rootName, ivs, bassName) {
 
 // ── 기타 음색: 통기타(어쿠스틱 스틸) — 따뜻한 기음 + 약한 배음 + 피크 어택 + 바디 공명 ──
 function makeGuitarTone(f, now, vol) {
-  var o1 = ctx.createOscillator(); // 기음 (따뜻한 triangle)
-  var o2 = ctx.createOscillator(); // 현 광택 (약한 sawtooth)
-  var o3 = ctx.createOscillator(); // 미세 디튠 유니즌 (현 울림)
-  o1.type = 'triangle';
+  // 스틸기타(스틸현): 밝고 또렷한 sawtooth 기음 + 상위 배음 + 하이 셸프 광택
+  var o1 = ctx.createOscillator(); // 기음 (밝은 sawtooth = 스틸현)
+  var o2 = ctx.createOscillator(); // 상위 배음 보강 (5도 위 살짝)
+  var o3 = ctx.createOscillator(); // 미세 디튠 유니즌 (현 울림/바디)
+  o1.type = 'sawtooth';
   o2.type = 'sawtooth';
   o3.type = 'triangle';
   o1.frequency.value = f;
   o2.frequency.value = f;
   o3.frequency.value = f * 1.004;
-  var o2g = ctx.createGain(); o2g.gain.value = 0.32; // 배음 양 줄여 부드럽게
-  var o3g = ctx.createGain(); o3g.gain.value = 0.5;
+  var o1g = ctx.createGain(); o1g.gain.value = 0.62; // sawtooth 기음 (밝음)
+  var o2g = ctx.createGain(); o2g.gain.value = 0.55; // 상위 배음↑ (밝게/스틸)
+  var o3g = ctx.createGain(); o3g.gain.value = 0.26; // 따뜻한 triangle↓ (부드러움 감소)
 
-  // 피킹 직후 밝게 → 점점 따뜻하게 닫히는 로우패스
+  // 피킹 직후 매우 밝게 → 천천히 닫힘(고음 오래 유지 = 스틸현 광택/twang)
   var lpf = ctx.createBiquadFilter();
   lpf.type = 'lowpass';
-  lpf.frequency.setValueAtTime(Math.min(f * 8, 5500), now);
-  lpf.frequency.exponentialRampToValueAtTime(Math.min(f * 3, 2200), now + 0.18);
-  lpf.frequency.exponentialRampToValueAtTime(Math.min(f * 1.8, 1200), now + 1.2);
-  lpf.Q.value = 0.7;
+  lpf.frequency.setValueAtTime(Math.min(f * 15, 12000), now);
+  lpf.frequency.exponentialRampToValueAtTime(Math.min(f * 8, 6000), now + 0.18);
+  lpf.frequency.exponentialRampToValueAtTime(Math.min(f * 5, 3600), now + 1.4);
+  lpf.Q.value = 0.9;
 
-  // 바디 공명 (저역 통울림 + 미드)
+  // 바디 공명 (따뜻함/박스감 최소화)
   var body1 = ctx.createBiquadFilter();
-  body1.type = 'peaking'; body1.frequency.value = 110; body1.Q.value = 1.0; body1.gain.value = 5;
+  body1.type = 'peaking'; body1.frequency.value = 110; body1.Q.value = 1.0; body1.gain.value = 1;
   var body2 = ctx.createBiquadFilter();
-  body2.type = 'peaking'; body2.frequency.value = 240; body2.Q.value = 1.2; body2.gain.value = 3;
+  body2.type = 'peaking'; body2.frequency.value = 240; body2.Q.value = 1.2; body2.gain.value = 0;
+  // 스틸 광택: 고역 하이 셸프 부스트 (금속성 반짝임 — 리미터가 피크 잡아줌)
+  var bright = ctx.createBiquadFilter();
+  bright.type = 'highshelf'; bright.frequency.value = 2600; bright.gain.value = 8;
+  // 존재감(프레즌스) 프레즌스 피크
+  var pres = ctx.createBiquadFilter();
+  pres.type = 'peaking'; pres.frequency.value = 3500; pres.Q.value = 1.0; pres.gain.value = 4;
 
   var g = ctx.createGain();
-  var v = vol * 0.085;
+  var v = vol * 0.07; // 리미터가 코드 합산 피크를 잡으므로 개별음은 여유있게
   g.gain.setValueAtTime(0.001, now);
-  g.gain.linearRampToValueAtTime(v, now + 0.005);           // 5ms 어택
-  g.gain.exponentialRampToValueAtTime(v * 0.5, now + 0.12); // 초기 빠른 감쇠
-  g.gain.exponentialRampToValueAtTime(v * 0.18, now + 0.8);
-  g.gain.exponentialRampToValueAtTime(0.001, now + 2.6);    // 긴 자연 감쇠
+  g.gain.linearRampToValueAtTime(v, now + 0.004);           // 4ms 어택(또렷)
+  g.gain.exponentialRampToValueAtTime(v * 0.55, now + 0.12);
+  g.gain.exponentialRampToValueAtTime(v * 0.2, now + 0.9);
+  g.gain.exponentialRampToValueAtTime(0.001, now + 2.8);    // 긴 자연 감쇠
 
-  o1.connect(lpf);
+  o1.connect(o1g); o1g.connect(lpf);
   o2.connect(o2g); o2g.connect(lpf);
   o3.connect(o3g); o3g.connect(lpf);
-  lpf.connect(body1); body1.connect(body2); body2.connect(g);
-  g.connect(ctx.destination);
-  o1.start(now); o1.stop(now + 2.7);
-  o2.start(now); o2.stop(now + 2.7);
-  o3.start(now); o3.stop(now + 2.7);
+  lpf.connect(body1); body1.connect(body2); body2.connect(bright); bright.connect(pres); pres.connect(g);
+  g.connect(getMaster());
+  o1.start(now); o1.stop(now + 2.9);
+  o2.start(now); o2.stop(now + 2.9);
+  o3.start(now); o3.stop(now + 2.9);
 
-  // 피크 어택 노이즈 (현 뜯는 소리, 아주 짧게)
+  // 피크 어택 노이즈 (현 뜯는 소리 — 밝고 또렷하게)
   var bufSize = Math.floor(ctx.sampleRate * 0.012);
   var nBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
   var nd = nBuf.getChannelData(0);
   for (var k = 0; k < bufSize; k++) nd[k] = (Math.random() * 2 - 1) * (1 - k / bufSize);
   var ns = ctx.createBufferSource(); ns.buffer = nBuf;
   var nbp = ctx.createBiquadFilter();
-  nbp.type = 'bandpass'; nbp.frequency.value = Math.min(f * 3, 3000); nbp.Q.value = 0.8;
+  nbp.type = 'bandpass'; nbp.frequency.value = Math.min(f * 5, 5000); nbp.Q.value = 0.8;
   var ng = ctx.createGain();
-  ng.gain.setValueAtTime(vol * 0.05, now);
+  ng.gain.setValueAtTime(vol * 0.08, now); // 픽 어택 강조(twang)
   ng.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
-  ns.connect(nbp); nbp.connect(ng); ng.connect(ctx.destination);
+  ns.connect(nbp); nbp.connect(ng); ng.connect(getMaster());
   ns.start(now); ns.stop(now + 0.035);
 }
 
@@ -206,7 +233,7 @@ function makePianoTone(f, now, vol) {
   tone.frequency.setValueAtTime(Math.min(f * 12, 9000), now);
   tone.frequency.exponentialRampToValueAtTime(Math.min(f * 5, 4500), now + 0.3);
   tone.Q.value = 0.5;
-  tone.connect(ctx.destination);
+  tone.connect(getMaster());
 
   harmonics.forEach(function(h) {
     // 유니즌 2현 미세 디튠 (저~중 배음만) → 그랜드 특유의 풍부함/비팅
@@ -241,7 +268,7 @@ function makePianoTone(f, now, vol) {
   ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.02);
   ns.connect(hpf);
   hpf.connect(ng);
-  ng.connect(ctx.destination);
+  ng.connect(getMaster());
   ns.start(now);
   ns.stop(now + 0.025);
 }

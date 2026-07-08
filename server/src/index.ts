@@ -45,6 +45,32 @@ const RESPONSE_SCHEMA = {
   required: ["analysis", "genre_version", "level_version", "substitute_version"],
 } as const;
 
+// ── GPS(다음 코드 루트 추천) 태스크 ─────────────────────────────────
+const GPS_SYSTEM_PROMPT = `너는 음악가를 위한 코드 진행 GPS야. 현재 진행과 코드를 보고, 이어서 갈 수 있는 자연스러운 루트 3가지를 제시해.
+- 각 루트는 서로 다른 분위기/장르 방향.
+- chords: 현재 코드 다음에 이어질 3~4개 코드(배열). 도수 흐름의 자연스러움과 레벨(입문=기본코드, 중급=7th, 재즈=텐션)을 지켜.
+- genre/mood: 짧은 한국어. tip: 한 줄 한국어 팁.`;
+
+const ROUTES_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    routes: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          genre: { type: "STRING" },
+          mood: { type: "STRING" },
+          chords: { type: "ARRAY", items: { type: "STRING" } },
+          tip: { type: "STRING" },
+        },
+        required: ["genre", "mood", "chords", "tip"],
+      },
+    },
+  },
+  required: ["routes"],
+} as const;
+
 function json(obj: unknown, status = 200): Response {
   return new Response(JSON.stringify(obj), {
     status,
@@ -79,7 +105,13 @@ async function withinRateLimit(appUserId: string, env: Env): Promise<boolean> {
 }
 
 /** Gemini 호출 → 구조화 JSON 문자열 반환 */
-async function callGemini(userMsg: string, env: Env): Promise<string> {
+async function callGemini(
+  userMsg: string,
+  env: Env,
+  systemPrompt: string = SYSTEM_PROMPT,
+  schema: unknown = RESPONSE_SCHEMA,
+  maxTokens: number = 1500,
+): Promise<string> {
   const model = env.GEMINI_MODEL || DEFAULT_MODEL;
   const url =
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent` +
@@ -89,12 +121,12 @@ async function callGemini(userMsg: string, env: Env): Promise<string> {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      system_instruction: { parts: [{ text: systemPrompt }] },
       contents: [{ role: "user", parts: [{ text: userMsg }] }],
       generationConfig: {
         response_mime_type: "application/json",
-        response_schema: RESPONSE_SCHEMA,
-        maxOutputTokens: 1500,
+        response_schema: schema,
+        maxOutputTokens: maxTokens,
         temperature: 0.7,
       },
     }),
@@ -121,10 +153,17 @@ export default {
       return json({ error: "bad_json" }, 400);
     }
 
-    const { appUserId, progression, genre, level, key, mode } = body ?? {};
+    const { appUserId, progression, genre, level, key, mode, task,
+            curChord, progDeg, detectedGenre } = body ?? {};
     if (!appUserId) return json({ error: "missing_app_user_id" }, 400);
-    if (!progression || !String(progression).trim())
+
+    const isGps = task === "gps";
+    if (isGps) {
+      if (!curChord || !String(curChord).trim())
+        return json({ error: "missing_cur_chord" }, 400);
+    } else if (!progression || !String(progression).trim()) {
       return json({ error: "missing_progression" }, 400);
+    }
 
     // 1) 프리미엄 검증 (클라이언트 신뢰 X)
     if (!(await isPremium(String(appUserId), env)))
@@ -134,15 +173,28 @@ export default {
     if (!(await withinRateLimit(String(appUserId), env)))
       return json({ error: "rate_limited" }, 429);
 
-    // 3) Gemini 호출
-    const userMsg =
-      `코드 진행: ${progression}\n` +
-      `장르: ${genre ?? "팝"}\n` +
-      `레벨: ${level ?? "중급"}\n` +
-      `기준 키: ${key ?? "C"} ${mode === "minor" ? "단조" : "장조"}`;
-
+    // 3) Gemini 호출 — task에 따라 프롬프트/스키마 분기
+    const keyStr = `${key ?? "C"} ${mode === "minor" ? "단조" : "장조"}`;
     try {
-      const text = await callGemini(userMsg, env);
+      let text: string;
+      if (isGps) {
+        const userMsg =
+          `키: ${keyStr}\n` +
+          `레벨: ${level ?? "중급"}\n` +
+          `선호 장르: ${genre ?? "팝"}${detectedGenre ? ` (진행 분석: ${detectedGenre} 감지)` : ""}\n` +
+          `지금까지 진행: ${progression ?? "(시작)"}\n` +
+          `도수 패턴: ${progDeg ?? "(시작)"}\n` +
+          `현재 코드: ${curChord}\n\n` +
+          `"${curChord}" 다음에 이어갈 루트 3가지를 제시해.`;
+        text = await callGemini(userMsg, env, GPS_SYSTEM_PROMPT, ROUTES_SCHEMA, 700);
+      } else {
+        const userMsg =
+          `코드 진행: ${progression}\n` +
+          `장르: ${genre ?? "팝"}\n` +
+          `레벨: ${level ?? "중급"}\n` +
+          `기준 키: ${keyStr}`;
+        text = await callGemini(userMsg, env);
+      }
       return new Response(text, {
         status: 200,
         headers: { "content-type": "application/json" },
