@@ -646,13 +646,20 @@ export default function ChordsTab({ onTranspose }) {
     }
     const newQual = toMin ? 'min' : 'maj';
     const newName = curChord.note + nv;
+    const oNote = curChord.note, oVar = curVar || '';
     setCurChord({ name: newName, note: curChord.note, quality: newQual });
     setCurVar(nv);
-    // 선택된 진행 슬롯(마디 안 코드)도 함께 변환
-    if (editIdx !== null && editIdx < progression.length) {
-      setProgression(prev => prev.map((p, i) =>
-        i === editIdx ? { ...p, name: newName, quality: newQual, variant: nv } : p));
-    }
+    // 진행 슬롯(마디 안 코드)도 함께 변환 — 선택된 슬롯(editIdx) 우선, 없으면 현재 코드와 일치하는 슬롯
+    setProgression(prev => {
+      let ti = (editIdx !== null && editIdx < prev.length) ? editIdx : -1;
+      if (ti < 0) {
+        for (let i = prev.length - 1; i >= 0; i--) {
+          if (prev[i].note === oNote && (prev[i].variant || '') === oVar) { ti = i; break; }
+        }
+      }
+      return ti < 0 ? prev : prev.map((p, i) =>
+        i === ti ? { ...p, name: newName, quality: newQual, variant: nv } : p);
+    });
     playChord(curChord.note, nv, newQual, 60000 / bpm);
   }
 
