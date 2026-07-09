@@ -18,7 +18,7 @@ export interface Env {
   GEMINI_MODEL?: string;           // 기본 "gemini-2.0-flash"
 }
 
-const DEFAULT_MODEL = "gemini-2.0-flash";
+const DEFAULT_MODEL = "gemini-3.1-flash-lite";
 
 const SYSTEM_PROMPT = `너는 음악 코드 진행 분석 전문가야. 주어진 코드 진행을 분석하고 3가지 버전을 제안해.
 - analysis: 원본 진행 분석 (2문장, 한국어)
