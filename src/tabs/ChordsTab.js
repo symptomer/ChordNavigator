@@ -18,6 +18,11 @@ import Purchases from '../utils/purchases';
 // AI GPS 백엔드 (Cloudflare Worker) — API 키는 서버에만, 앱엔 없음
 const WORKER_URL = 'https://chordnavigator-ai.symptomer.workers.dev';
 
+// 장·단 전환 매핑: 메이저-계열 variant ↔ 마이너-계열 variant
+const TO_MIN = { '': 'm', maj7: 'm7', maj9: 'm9', '6': 'm6', '7': 'm7', '9': 'm9', add9: 'm', '13': 'm11' };
+const TO_MAJ = { m: '', m7: 'maj7', m9: 'maj9', m6: '6', m11: 'm9', mMaj7: 'maj7' };
+function flipVariant(variant, toMin) { return (toMin ? TO_MIN : TO_MAJ)[variant || '']; }
+
 // 도수별 역할 레이블 (GPS 카드용)
 const CHORD_ROLE = {
   0: { label: '안정', color: '#4CAF50' },
@@ -625,7 +630,7 @@ export default function ChordsTab({ onTranspose }) {
     }
   }
 
-  // 장·단 전환: 현재 코드의 3도를 뒤집어 마이너↔메이저 (Cmaj7↔Cm7, C↔Cm 등)
+  // 장·단 전환: 선택된 코드의 3도를 뒤집어 마이너↔메이저 (Cmaj7↔Cm7 등) — 진행 슬롯도 함께
   function flipCurChordMinor() {
     if (!curChord) { Alert.alert('먼저 코드를 선택하세요'); return; }
     const q = curChord.quality;
@@ -633,27 +638,46 @@ export default function ChordsTab({ onTranspose }) {
       Alert.alert('전환할 수 없어요', '이 코드 종류(감·서스펜디드 등)는 장/단 전환 대상이 아니에요.');
       return;
     }
-    const toMin  = q === 'maj';
-    const TO_MIN = { '': 'm', 'maj7': 'm7', 'maj9': 'm9', '6': 'm6', '7': 'm7', '9': 'm9', 'add9': 'm', '13': 'm11' };
-    const TO_MAJ = { 'm': '', 'm7': 'maj7', 'm9': 'maj9', 'm6': '6', 'm11': 'm9', 'mMaj7': 'maj7' };
-    const nv = (toMin ? TO_MIN : TO_MAJ)[curVar || ''];
+    const toMin = q === 'maj';
+    const nv = flipVariant(curVar, toMin);
     if (nv == null) {
       Alert.alert('전환할 수 없어요', `이 코드 종류는 대응하는 ${toMin ? '마이너' : '메이저'} 형태가 없어요.`);
       return;
     }
     const newQual = toMin ? 'min' : 'maj';
-    setCurChord({ name: curChord.note + nv, note: curChord.note, quality: newQual });
+    const newName = curChord.note + nv;
+    setCurChord({ name: newName, note: curChord.note, quality: newQual });
     setCurVar(nv);
+    // 선택된 진행 슬롯(마디 안 코드)도 함께 변환
+    if (editIdx !== null && editIdx < progression.length) {
+      setProgression(prev => prev.map((p, i) =>
+        i === editIdx ? { ...p, name: newName, quality: newQual, variant: nv } : p));
+    }
     playChord(curChord.note, nv, newQual, 60000 / bpm);
   }
 
-  // "단조 전환" 버튼 → 적용 범위 선택 (이 코드만 / 키 전체)
+  // 진행 전체를 단조(또는 장조)로 — 해당 방향 코드만 변환
+  function convertProgressionMinor(toMin) {
+    if (!progression.length) { Alert.alert('진행이 없습니다'); return; }
+    setProgression(prev => prev.map(p => {
+      if (toMin && p.quality === 'maj') {
+        const nv = flipVariant(p.variant, true);
+        if (nv != null) return { ...p, name: p.note + nv, quality: 'min', variant: nv };
+      } else if (!toMin && p.quality === 'min') {
+        const nv = flipVariant(p.variant, false);
+        if (nv != null) return { ...p, name: p.note + nv, quality: 'maj', variant: nv };
+      }
+      return p;
+    }));
+  }
+
+  // "장·단 전환" 버튼 → 적용 범위 선택
   function onMinorConvert() {
-    const isMin = selMode === 'minor';
     const curLabel = curChord ? ` (${flatChordName(curChord.note + (curVar || ''), activeKey, selMode)})` : '';
-    Alert.alert('장·단 전환', '무엇을 바꿀까요?', [
+    Alert.alert('장·단 전환', '코드를 마이너↔메이저로 바꿉니다.', [
       { text: `이 코드만${curLabel}`, onPress: flipCurChordMinor },
-      { text: isMin ? '키 전체 → 장조' : '키 전체 → 단조', onPress: () => setSelMode(isMin ? 'major' : 'minor') },
+      { text: '진행 전체 → 단조', onPress: () => convertProgressionMinor(true) },
+      { text: '진행 전체 → 장조', onPress: () => convertProgressionMinor(false) },
       { text: '취소', style: 'cancel' },
     ]);
   }
