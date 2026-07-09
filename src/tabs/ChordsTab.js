@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Alert,
+  StyleSheet, ActivityIndicator, Alert, Modal,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { usePurchase } from '../context/PurchaseContext';
@@ -22,6 +22,9 @@ const WORKER_URL = 'https://chordnavigator-ai.symptomer.workers.dev';
 const TO_MIN = { '': 'm', maj7: 'm7', maj9: 'm9', '6': 'm6', '7': 'm7', '9': 'm9', add9: 'm', '13': 'm11' };
 const TO_MAJ = { m: '', m7: 'maj7', m9: 'maj9', m6: '6', m11: 'm9', mMaj7: 'maj7' };
 function flipVariant(variant, toMin) { return (toMin ? TO_MIN : TO_MAJ)[variant || '']; }
+
+// 기본 마디 크기 (1마디 당 코드 수) — 자동 분할·루트 적용 기준
+const MEASURE_SIZE = 2;
 
 // 도수별 역할 레이블 (GPS 카드용)
 const CHORD_ROLE = {
@@ -581,6 +584,15 @@ export default function ChordsTab({ onTranspose }) {
   const [showSaved,    setShowSaved]    = useState(false);
   const [editIdx,      setEditIdx]      = useState(null);
   const [techBeatMap,  setTechBeatMap]  = useState({});
+  const [measureEditVisible, setMeasureEditVisible] = useState(false);
+
+  // 마디 수정: 코드 i 앞의 마디줄 토글 (0은 항상 첫 마디라 제외)
+  function toggleBreak(i) {
+    if (i <= 0 || i >= progression.length) return;
+    setMeasureBreaks(prev => prev.includes(i)
+      ? prev.filter(b => b !== i)
+      : [...prev, i].sort((a, b) => a - b));
+  }
 
   const chords = getChords(activeKey, selMode);
   const levelDef  = LEVEL_DEFAULT[selLevel]  || LEVEL_DEFAULT.mid;
@@ -621,11 +633,11 @@ export default function ChordsTab({ onTranspose }) {
       if (progression.length >= maxProg) return;
       setProgression(prev => [...prev, entry]);
       setEditIdx(null);
-      // 마지막 마디가 4코드가 되면 자동으로 새 마디 시작
+      // 마지막 마디가 MEASURE_SIZE 코드가 되면 자동으로 새 마디 시작
       const lastBreak = measureBreaks[measureBreaks.length - 1];
-      if (progression.length + 1 - lastBreak === 4) {
+      if (progression.length + 1 - lastBreak === MEASURE_SIZE) {
         setMeasureBreaks(prev => [...prev, progression.length + 1]);
-        setMaxProg(prev => prev + 4);
+        setMaxProg(prev => prev + MEASURE_SIZE);
       }
     }
   }
@@ -761,17 +773,28 @@ export default function ChordsTab({ onTranspose }) {
 
   // 루트 전체를 진행에 추가
   function applyRoute(route) {
-    setProgression(prev => {
-      const space = maxProg - prev.length;
-      if (space <= 0) return prev;
-      const toAdd = route.chords.slice(0, space).map(name => {
-        const note    = name.match(/^[A-G][b#]?/)?.[0] || name;
-        const quality = name.includes('m') && !name.includes('maj') ? 'min'
-                      : name.includes('°') ? 'dim' : 'maj';
-        return { name, note, quality, variant: '' };
-      });
-      return [...prev, ...toAdd];
+    const space = maxProg - progression.length;
+    if (space <= 0) return;
+    const startLen = progression.length;
+    const toAdd = route.chords.slice(0, space).map(name => {
+      const note    = name.match(/^[A-G][b#]?/)?.[0] || name;
+      const quality = name.includes('m') && !name.includes('maj') ? 'min'
+                    : name.includes('°') ? 'dim' : 'maj';
+      return { name, note, quality, variant: '' };
     });
+    if (!toAdd.length) return;
+    const newLen = startLen + toAdd.length;
+    setProgression(prev => [...prev, ...toAdd]);
+    // 마지막 마디 기준 MEASURE_SIZE(2)마다 마디 경계 추가 → 한 마디에 안 몰림
+    setMeasureBreaks(prev => {
+      const breaks = [...prev];
+      const lastBreak = breaks[breaks.length - 1];
+      for (let b = lastBreak + MEASURE_SIZE; b < newLen; b += MEASURE_SIZE) {
+        if (!breaks.includes(b)) breaks.push(b);
+      }
+      return breaks.sort((a, b) => a - b);
+    });
+    setMaxProg(prev => Math.max(prev, newLen));
   }
 
   // 화면에 표시되는 운지 그대로 발음 (소리=그림). shape 없으면 일반 코드 재생으로 폴백.
@@ -1044,6 +1067,36 @@ export default function ChordsTab({ onTranspose }) {
   return (
     <ScrollView ref={scrollRef} style={styles.wrap} contentContainerStyle={{ paddingBottom: 24 }}>
 
+      {/* ── 마디 수정 팝업 ── */}
+      <Modal visible={measureEditVisible} transparent animationType="fade"
+        onRequestClose={() => setMeasureEditVisible(false)}>
+        <View style={styles.measBackdrop}>
+          <View style={styles.measCard}>
+            <Text style={styles.measTitle}>마디 수정</Text>
+            <Text style={styles.measHint}>코드 사이를 눌러 마디줄(▐)을 옮기세요</Text>
+            <View style={styles.measRow}>
+              {progression.map((p, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && (
+                    <TouchableOpacity onPress={() => toggleBreak(i)} style={styles.measDivider} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+                      <Text style={[styles.measDividerTxt, measureBreaks.includes(i) && styles.measDividerOn]}>
+                        {measureBreaks.includes(i) ? '▐' : '·'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  <View style={styles.measChip}>
+                    <Text style={styles.measChipTxt}>{displayChordName(p.name, activeKey, selMode)}</Text>
+                  </View>
+                </React.Fragment>
+              ))}
+            </View>
+            <TouchableOpacity style={styles.measDoneBtn} onPress={() => setMeasureEditVisible(false)}>
+              <Text style={styles.measDoneTxt}>완료</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* ── 내 진행 ── */}
       <View style={styles.histSection}>
         {/* 헤더 1줄: 제목 + 저장/불러오기/초기화 */}
@@ -1064,6 +1117,12 @@ export default function ChordsTab({ onTranspose }) {
               <TouchableOpacity style={styles.ctrlBtn} onPress={handleExportMIDI}>
                 <Text style={styles.ctrlBtnTxt}>♪</Text>
                 <Text style={styles.ctrlBtnLabel}>MIDI</Text>
+              </TouchableOpacity>
+            )}
+            {progression.length > 1 && (
+              <TouchableOpacity style={styles.ctrlBtn} onPress={() => setMeasureEditVisible(true)}>
+                <Text style={styles.ctrlBtnTxt}>▐</Text>
+                <Text style={styles.ctrlBtnLabel}>마디</Text>
               </TouchableOpacity>
             )}
             {progression.length > 0 && (
@@ -1735,6 +1794,20 @@ export default function ChordsTab({ onTranspose }) {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: COLORS.bg },
+
+  // 마디 수정 팝업
+  measBackdrop:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 },
+  measCard:      { backgroundColor: COLORS.card, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, padding: 18 },
+  measTitle:     { fontSize: 17, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
+  measHint:      { fontSize: 12, color: COLORS.text2, textAlign: 'center', marginTop: 6, marginBottom: 14 },
+  measRow:       { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 2 },
+  measChip:      { backgroundColor: COLORS.bg3, borderRadius: 7, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: COLORS.border },
+  measChipTxt:   { color: COLORS.text, fontSize: 14, fontWeight: '600' },
+  measDivider:   { paddingHorizontal: 4, minWidth: 18, alignItems: 'center', justifyContent: 'center' },
+  measDividerTxt:{ color: COLORS.text2, fontSize: 18, opacity: 0.4 },
+  measDividerOn: { color: COLORS.accent, opacity: 1, fontWeight: '700' },
+  measDoneBtn:   { marginTop: 18, backgroundColor: COLORS.accent, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  measDoneTxt:   { color: '#111', fontSize: 15, fontWeight: '800' },
 
   // 내 진행
   histSection:      { backgroundColor: COLORS.bg3, borderRadius: 10, padding: 10, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border },
