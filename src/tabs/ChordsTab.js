@@ -1074,6 +1074,9 @@ export default function ChordsTab({ onTranspose }) {
           <View style={styles.measCard}>
             <Text style={styles.measTitle}>마디 수정</Text>
             <Text style={styles.measHint}>코드 사이를 눌러 마디줄(▐)을 옮기세요</Text>
+            {progression.length < 2 ? (
+              <Text style={styles.measEmpty}>마디를 나누려면 코드를 2개 이상 넣어주세요.</Text>
+            ) : (
             <View style={styles.measRow}>
               {progression.map((p, i) => (
                 <React.Fragment key={i}>
@@ -1090,6 +1093,7 @@ export default function ChordsTab({ onTranspose }) {
                 </React.Fragment>
               ))}
             </View>
+            )}
             <TouchableOpacity style={styles.measDoneBtn} onPress={() => setMeasureEditVisible(false)}>
               <Text style={styles.measDoneTxt}>완료</Text>
             </TouchableOpacity>
@@ -1117,12 +1121,6 @@ export default function ChordsTab({ onTranspose }) {
               <TouchableOpacity style={styles.ctrlBtn} onPress={handleExportMIDI}>
                 <Text style={styles.ctrlBtnTxt}>♪</Text>
                 <Text style={styles.ctrlBtnLabel}>MIDI</Text>
-              </TouchableOpacity>
-            )}
-            {progression.length > 1 && (
-              <TouchableOpacity style={styles.ctrlBtn} onPress={() => setMeasureEditVisible(true)}>
-                <Text style={styles.ctrlBtnTxt}>▐</Text>
-                <Text style={styles.ctrlBtnLabel}>마디</Text>
               </TouchableOpacity>
             )}
             {progression.length > 0 && (
@@ -1156,35 +1154,37 @@ export default function ChordsTab({ onTranspose }) {
           ))}
         </View>
 
-        {/* 헤더 2줄: 재생(크게) + 템포(크게) */}
-        {progression.length > 0 && (
-          <View style={styles.histHeaderRow2}>
-            <TouchableOpacity
-              style={[styles.playBigBtn, playing && styles.playBigBtnStop]}
-              onPress={playing ? stopPlay : startPlay}>
-              <Text style={[styles.playBigIcon, playing && styles.playBigIconStop]}>
-                {playing ? '■' : '▶'}
-              </Text>
-              <Text style={[styles.playBigLabel, playing && styles.playBigIconStop]}>
-                {playing ? '정지' : '재생'}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.bpmBigWrap} onPress={promptBpm} activeOpacity={0.7}>
-              <View style={styles.bpmBigInner}>
-                <TouchableOpacity onPress={() => setBpm(b => Math.max(40, b - 5))} style={styles.bpmBigAdj} hitSlop={{top:8,bottom:8,left:4,right:4}}>
-                  <Text style={styles.bpmBigAdjTxt}>−</Text>
-                </TouchableOpacity>
-                <View style={{ alignItems: 'center' }}>
-                  <Text style={styles.bpmBigTxt}>{bpm}</Text>
-                  <Text style={styles.bpmBigLabel}>BPM</Text>
-                </View>
-                <TouchableOpacity onPress={() => setBpm(b => Math.min(200, b + 5))} style={styles.bpmBigAdj} hitSlop={{top:8,bottom:8,left:4,right:4}}>
-                  <Text style={styles.bpmBigAdjTxt}>+</Text>
-                </TouchableOpacity>
+        {/* 헤더 2줄: 재생(크게) + 템포(크게) + 마디 수정 — 코드 없어도 상시 표시 */}
+        <View style={styles.histHeaderRow2}>
+          <TouchableOpacity
+            style={[styles.playBigBtn, playing && styles.playBigBtnStop]}
+            onPress={playing ? stopPlay : startPlay}>
+            <Text style={[styles.playBigIcon, playing && styles.playBigIconStop]}>
+              {playing ? '■' : '▶'}
+            </Text>
+            <Text style={[styles.playBigLabel, playing && styles.playBigIconStop]}>
+              {playing ? '정지' : '재생'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.bpmBigWrap} onPress={promptBpm} activeOpacity={0.7}>
+            <View style={styles.bpmBigInner}>
+              <TouchableOpacity onPress={() => setBpm(b => Math.max(40, b - 5))} style={styles.bpmBigAdj} hitSlop={{top:8,bottom:8,left:4,right:4}}>
+                <Text style={styles.bpmBigAdjTxt}>−</Text>
+              </TouchableOpacity>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={styles.bpmBigTxt}>{bpm}</Text>
+                <Text style={styles.bpmBigLabel}>BPM</Text>
               </View>
-            </TouchableOpacity>
-          </View>
-        )}
+              <TouchableOpacity onPress={() => setBpm(b => Math.min(200, b + 5))} style={styles.bpmBigAdj} hitSlop={{top:8,bottom:8,left:4,right:4}}>
+                <Text style={styles.bpmBigAdjTxt}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.measRowBtn} onPress={() => setMeasureEditVisible(true)}>
+            <Text style={styles.measRowBtnIcon}>▐</Text>
+            <Text style={styles.measRowBtnTxt}>마디</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* 저장된 진행 목록 */}
         {showSaved && (
@@ -1800,6 +1800,10 @@ const styles = StyleSheet.create({
   measCard:      { backgroundColor: COLORS.card, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, padding: 18 },
   measTitle:     { fontSize: 17, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
   measHint:      { fontSize: 12, color: COLORS.text2, textAlign: 'center', marginTop: 6, marginBottom: 14 },
+  measEmpty:     { fontSize: 13, color: COLORS.text2, textAlign: 'center', paddingVertical: 20 },
+  measRowBtn:    { flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 8, backgroundColor: COLORS.card },
+  measRowBtnIcon:{ fontSize: 16, color: COLORS.accent, fontWeight: '700' },
+  measRowBtnTxt: { fontSize: 11, color: COLORS.text2, fontWeight: '700', marginTop: 2 },
   measRow:       { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 2 },
   measChip:      { backgroundColor: COLORS.bg3, borderRadius: 7, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: COLORS.border },
   measChipTxt:   { color: COLORS.text, fontSize: 14, fontWeight: '600' },
