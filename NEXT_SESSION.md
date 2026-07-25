@@ -1,7 +1,7 @@
 # ChordNavigator — 다음 세션 작업 계획
 
 **프로젝트 경로:** `/Users/symptomer/Documents/ChordNavigator`
-**최근 작업:** 2026-07-25 (11차) — **1.0.2 출시 완료** + **다국어(1.0.3) 작업 착수** (i18n 틀+홈 완료, 나머지 진행 중)
+**최근 작업:** 2026-07-25 (12차) — **1.0.2 출시 완료** + **다국어(1.0.3) 앱 내부 전부 완료**(363키 × 10개 언어, 검증 하네스 상주). 남은 건 Worker 배포·ASC 메타·빌드
 **현재 브랜치:** main · **GitHub:** https://github.com/symptomer/ChordNavigator
 **ascAppId** `6772862881` · 로그인 appstoreconnect.apple.com (KANG DOSEONG / symptomers@naver.com)
 
@@ -12,26 +12,34 @@
 **목표:** 코드네비게이터를 **10개 언어**로 (메트로눈처럼 기기 언어 자동 감지). 언어: **ko en ja zh es fr de pt ru it**.
 **왜 1.0.3:** 1.0.2가 **이미 출시(승인)됨** → 새 빌드는 반드시 **app.json version 1.0.2→1.0.3**으로 올려야 함(안 올리면 ITMS-90186/90062 거부).
 
-### ✅ 이미 된 것 (커밋 `9d68f19`)
-- `expo-localization` 설치 + `app.json` plugins에 추가.
-- **`src/i18n/index.js`** — `t(key, params)` 조회(키기준·영어폴백), `LANG`(기기언어 자동감지, 미지원→en), `LANG_NAME`(AI Worker에 넘길 영문 언어명), `SUPPORTED` 10개.
-- **`src/i18n/strings.js`** — 번역 테이블. **키 기준 구조** `{ key: { ko, en, ja, zh, es, fr, de, pt, ru, it } }`. 현재 핵심 UI(탭·홈·공통컨트롤·키/모드/레벨·프리미엄)만 채워짐.
-- **`HomeScreen.js`** 전체 t() 연결 완료(검증 통과).
+### ✅ 앱 안쪽 다국어는 **전부 끝남** (커밋 `9d68f19` → `b41f2f7`)
+- `expo-localization` + `app.json` CFBundleLocalizations 10개 + version 1.0.3.
+- **`src/i18n/index.js`** — `t(key, params)`, `LANG`(기기언어 자동감지·미지원→en), `LANG_NAME`(AI에 넘길 영문 언어명), **`posLabel(pos)`**(기타 포지션 패턴 번역), `SUPPORTED` 10개.
+- **`src/i18n/strings.js`(279키) + `src/i18n/strings_manual.js`(84키)** — 합쳐 **363키 × 10개 언어**. index.js에서 합쳐 조회. 설명서 키는 `m` 접두사(충돌 방지).
+- 화면 전부 연결: **HomeScreen · ChordsTab · AnalyzeTab · ScaleTab · NavigatorScreen(탭바) · PaywallScreen · OnboardingScreen · PrivacyPolicyModal · ManualModal(8페이지) · GuitarDiagram · PianoDiagram**.
+- 데이터: `musicData.js`의 `GENRE_PROGS.nameKey` / `SCALE_MODES.labelKey`로 전환(데이터에서 한글 제거).
+- **AI 응답 언어 분기 코드 완료** — 앱이 `lang: LANG_NAME` + 장르·레벨을 **키**로 전송, Worker가 영문 표기 매핑 후 "Write every natural-language field in {lang}" 지시. 구버전 앱(라이브 1.0.2)은 lang 없이 와도 한국어로 동작(하위 호환).
 
-### 🔧 작업 패턴 (화면마다 반복)
-1. 파일 맨 위 `import { t } from '../i18n';` (tabs/는 `'../i18n'`, screens/도 `'../i18n'` — 상대경로 주의).
-2. 한글 UI 문자열 → `strings.js`에 키 추가(**10개 언어 다**) → `{t('키')}` 로 교체.
-3. `node -e "..@babel/parser.."` 로 문법 검증(아래 검증법). 로직용 한글(비교키)은 그대로 두고 **표시 문자열만** 교체.
+### 🧪 검증은 하네스로 (레포 상주)
+```
+node src/i18n/check.js
+```
+문법(28파일) · 두 테이블 키 충돌 · **10개 언어 누락/빈값** · 없는 키 사용 · 미사용 키 · **자리표시자{n}와 호출부 파라미터 일치** · **`t()` 가림 탐지**를 한 번에. 현재 전부 통과.
++ 번들 검증: `EXPO_NO_TYPESCRIPT_SETUP=1 npx expo export --platform ios` → 1004모듈 성공.
 
-### ⏭️ 남은 것 (이 순서, 규모순)
-1. **ChordsTab.js** (268줄 한글, 제일 큼 — 재생/BPM/마디/장·단/기법제안/GPS추천/다이아토닉/Alert들)
-2. **분석 AnalyzeTab.js** + **ScaleTab.js** + **InstrumentTab/ProgressionTab/SavedTab**
-3. **PaywallScreen.js**(기능 비교표) + **ManualModal.js**(96줄, 긴 도움말 프로즈 — 번역량 큼) + **OnboardingScreen/PrivacyPolicyModal/NavigatorScreen**
-4. **탭바 라벨**(하단 '코드'·'분석·스케일') — 네비게이션 정의부(App.js 또는 상위) 찾아서 `t('tabChords')`/`t('tabAnalyze')`
-5. **데이터**: `musicData.js`(699줄 — 장르명 GENRE_PROGS, 기법명/설명, COLORS는 아님) + `musicUtils.js` + `songPatterns.js` — 표시용 한글만.
-6. **AI 응답 언어 분기**: `server/src/index.ts` 프롬프트에 언어 지시 추가(+앱에서 `lang`/`LANG_NAME` 전달). AnalyzeTab `runAI`·ChordsTab `fetchGPSRoutes` body에 lang 넣기 → Worker 프롬프트가 "Respond in {language}". **Worker 재배포 필요**(`cd server && npx wrangler deploy`).
-7. **App Store 메타데이터 10개 언어**(ASC 웹): 이름·부제·설명·키워드·(스크린샷은 공용). 배포→버전1.0.3→우측 언어 드롭다운에서 언어 추가.
-8. **빌드**: app.json version **1.0.3**로 올림 → `eas build -p ios --profile production` → `eas submit`(자동재시도) → ASC 버전1.0.3 생성·빌드연결·변경사항·제출.
+### 🕳️ 이번에 실제로 밟은 함정 (다음에도 조심)
+- 🔴 **지역변수 `t`가 i18n `t()`를 가린다.** ChordsTab 클리셰의 `const t = [트라이어드]`, NavigatorScreen 탭바의 `TABS.map(t => …)` 두 곳이 그랬음 → 그대로 뒀으면 런타임 `t is not a function`. 하네스가 이제 잡아줌.
+- 🔴 **하드코딩 가격**: ManualModal에 `₩1,900 / ₩8,800`이 박혀 있었음(175개국에 원화 노출). → `usePurchase()`의 `monthlyPrice/lifetimePrice`(스토어 현지 통화) 사용으로 교체.
+- 🔴 **개인정보처리방침이 사실과 달랐음**: 'Anthropic (Claude AI)'로 적혀 있었으나 실제는 **Cloudflare Worker → Google Gemini**(`server/wrangler.toml` `GEMINI_MODEL=gemini-3.1-flash-lite`). 앱 안 문구는 바로잡음. **웹 `privacy-policy.html`과 ASC 개인정보 답변은 아직 안 고침 → 아래 남은 일 참조.**
+- 기타 포지션 라벨은 **번역하지 말 것**. 400여 개가 `'오픈'/'N프렛'/'X형 N프렛'` 세 패턴뿐이라 `posLabel()`이 런타임에 푼다.
+- `ProgressionTab.js` · `InstrumentTab.js` · `SavedTab.js`는 **어디서도 렌더되지 않는 죽은 파일**(마운트는 ChordsTab·AnalyzeTab·ScaleTab뿐) → 다국어화 안 함.
+
+### ⏭️ 남은 것 (앱 밖 작업)
+1. 🔴 **Worker 배포** — `cd server && npx wrangler deploy`. 안 하면 AI는 계속 한국어로 답한다(앱은 lang을 보내지만 서버가 무시). **사장님 승인 후 진행.**
+2. 🔴 **개인정보 문구 정합성** — 웹 `privacy-policy.html`의 제3자 서비스도 Google(Gemini)·Cloudflare·RevenueCat·Apple로 수정 + ASC 개인정보 답변 확인.
+3. **App Store 메타데이터 10개 언어**(ASC 웹): 이름·부제·설명·키워드(스크린샷은 공용). 배포→버전1.0.3→우측 언어 드롭다운에서 언어 추가.
+4. **빌드·제출**: app.json version은 이미 **1.0.3** → `eas build -p ios --profile production` → `eas submit` → ASC 버전1.0.3 생성·빌드연결·변경사항·제출.
+5. (선택) 실기기에서 기기 언어 바꿔가며 레이아웃 확인 — 독일어·러시아어가 길어서 버튼 줄바꿈 가능성.
 
 ### ⚠️ 이 프로젝트 함정 (11차까지 교훈)
 - **버전번호**: 출시된 버전으로 새빌드 못 올림 → 항상 app.json version 올릴 것.
