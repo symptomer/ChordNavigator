@@ -14,6 +14,7 @@ import { SONG_PATTERNS } from '../data/songPatterns';
 import GuitarDiagram from '../components/GuitarDiagram';
 import PianoDiagram  from '../components/PianoDiagram';
 import Purchases from '../utils/purchases';
+import { t } from '../i18n';
 
 // AI GPS 백엔드 (Cloudflare Worker) — API 키는 서버에만, 앱엔 없음
 const WORKER_URL = 'https://chordnavigator-ai.symptomer.workers.dev';
@@ -28,13 +29,13 @@ const MEASURE_SIZE = 2;
 
 // 도수별 역할 레이블 (GPS 카드용)
 const CHORD_ROLE = {
-  0: { label: '안정', color: '#4CAF50' },
-  1: { label: '움직임', color: '#2196F3' },
-  2: { label: '따뜻함', color: '#FF9800' },
-  3: { label: '여유', color: '#9C27B0' },
-  4: { label: '긴장', color: '#f44336' },
-  5: { label: '감성', color: '#E91E63' },
-  6: { label: '불안', color: '#795548' },
+  0: { key: 'roleStable',   color: '#4CAF50' },
+  1: { key: 'roleMotion',   color: '#2196F3' },
+  2: { key: 'roleWarm',     color: '#FF9800' },
+  3: { key: 'roleRelaxed',  color: '#9C27B0' },
+  4: { key: 'roleTension',  color: '#f44336' },
+  5: { key: 'roleEmotive',  color: '#E91E63' },
+  6: { key: 'roleUnstable', color: '#795548' },
 };
 
 // 진행 → 도수 배열 변환 후 곡 패턴 매칭
@@ -68,9 +69,12 @@ const NEXT_FROM = {
 const GENRE_EMOJI = {
   pop: '🎵', rock: '🎸', jazz: '🎹', rnb: '🎤', ballad: '💙', bossa: '🌊',
 };
-const GENRE_KO = {
-  pop: '팝', rock: '록', jazz: '재즈', rnb: 'R&B', ballad: '발라드', bossa: '보사노바',
+// 장르 표시명 (다국어 키)
+const GENRE_KEY = {
+  pop: 'genrePop', rock: 'genreRock', jazz: 'genreJazz',
+  rnb: 'genreRnb', ballad: 'genreBallad', bossa: 'genreBossa',
 };
+const genreName = g => (GENRE_KEY[g] ? t(GENRE_KEY[g]) : g);
 
 // 현재 진행 → 장르 자동 감지 (단일, 하위 호환용)
 function detectGenre(progression, chords) {
@@ -99,39 +103,39 @@ function detectGenres(progression, chords) {
 // ── 장르별 코드 진행 패턴 DB (도수 인덱스 기반) ──────────────────
 const GENRE_PATTERNS = {
   pop: [
-    { pattern:[0,4,5,3], mood:'밝고 상쾌한',  tip:'팝의 황금 진행' },
-    { pattern:[0,3,4,0], mood:'클래식',        tip:'가장 기본적인 팝' },
-    { pattern:[5,3,0,4], mood:'감성적',        tip:'VI-IV-I-V 팝 감성' },
-    { pattern:[1,4,0,5], mood:'세련된',        tip:'II-V-I 팝 버전' },
+    { pattern:[0,4,5,3], mood:'moodBright',        tip:'tipPopGolden' },
+    { pattern:[0,3,4,0], mood:'moodClassic',       tip:'tipPopBasic' },
+    { pattern:[5,3,0,4], mood:'moodEmotional',     tip:'tipPopEmotion' },
+    { pattern:[1,4,0,5], mood:'moodSophisticated', tip:'tipPopIIVI' },
   ],
   rock: [
-    { pattern:[0,3,4,0], mood:'파워풀',        tip:'I-IV-V 록 기본' },
-    { pattern:[0,5,3,4], mood:'드라이브',      tip:'I-VI-IV-V 드라이빙 록' },
-    { pattern:[0,3,5,4], mood:'그루비',        tip:'I-IV-VI-V 그루비 록' },
-    { pattern:[0,4,3,5], mood:'어두운',        tip:'I-V-IV-VI 헤비' },
+    { pattern:[0,3,4,0], mood:'moodPowerful',      tip:'tipRockBasic' },
+    { pattern:[0,5,3,4], mood:'moodDriving',       tip:'tipRockDriving' },
+    { pattern:[0,3,5,4], mood:'moodGroovy',        tip:'tipRockGroovy' },
+    { pattern:[0,4,3,5], mood:'moodDark',          tip:'tipRockHeavy' },
   ],
   jazz: [
-    { pattern:[1,4,0],   mood:'스윙',          tip:'II-V-I 정통 재즈' },
-    { pattern:[0,5,1,4], mood:'서정적',        tip:'I-VI-II-V 리듬 체인지' },
-    { pattern:[2,5,1,4], mood:'모달',          tip:'III-VI-II-V 재즈 순환' },
-    { pattern:[0,4,3,1], mood:'바운시',        tip:'I-V-IV-II 재즈 터치' },
+    { pattern:[1,4,0],   mood:'moodSwing',         tip:'tipJazzStandard' },
+    { pattern:[0,5,1,4], mood:'moodLyrical',       tip:'tipJazzRhythm' },
+    { pattern:[2,5,1,4], mood:'moodModal',         tip:'tipJazzCycle' },
+    { pattern:[0,4,3,1], mood:'moodBouncy',        tip:'tipJazzTouch' },
   ],
   rnb: [
-    { pattern:[0,3,5,4], mood:'그루비',        tip:'I-IV-VI-V 소울' },
-    { pattern:[5,3,0,4], mood:'소울풀',        tip:'VI-IV-I-V R&B 클래식' },
-    { pattern:[0,5,3,1], mood:'부드러운',      tip:'I-VI-IV-II 네오소울' },
-    { pattern:[0,4,5,1], mood:'리드미컬',      tip:'I-V-VI-II 펑키' },
+    { pattern:[0,3,5,4], mood:'moodGroovy',        tip:'tipRnbSoul' },
+    { pattern:[5,3,0,4], mood:'moodSoulful',       tip:'tipRnbClassic' },
+    { pattern:[0,5,3,1], mood:'moodSmooth',        tip:'tipRnbNeo' },
+    { pattern:[0,4,5,1], mood:'moodRhythmic',      tip:'tipRnbFunky' },
   ],
   ballad: [
-    { pattern:[0,4,5,3], mood:'서정적',        tip:'발라드 황금 진행' },
-    { pattern:[0,4,2,5], mood:'드라마틱',      tip:'I-V-III-VI 서사적' },
-    { pattern:[0,3,0,4], mood:'잔잔한',        tip:'I-IV-I-V 단순한 아름다움' },
-    { pattern:[5,4,0,3], mood:'슬픈',          tip:'VI-V-I-IV 슬로우 발라드' },
+    { pattern:[0,4,5,3], mood:'moodLyrical',       tip:'tipBalladGolden' },
+    { pattern:[0,4,2,5], mood:'moodDramatic',      tip:'tipBalladEpic' },
+    { pattern:[0,3,0,4], mood:'moodCalm',          tip:'tipBalladSimple' },
+    { pattern:[5,4,0,3], mood:'moodSad',           tip:'tipBalladSlow' },
   ],
   bossa: [
-    { pattern:[0,5,1,4], mood:'달콤한',        tip:'보사노바 기본 순환' },
-    { pattern:[0,3,5,1], mood:'리드미컬',      tip:'I-IV-VI-II 라틴 감성' },
-    { pattern:[1,5,1,4], mood:'유러피안',      tip:'II-VI-II-V 세련된' },
+    { pattern:[0,5,1,4], mood:'moodSweet',         tip:'tipBossaBasic' },
+    { pattern:[0,3,5,1], mood:'moodRhythmic',      tip:'tipBossaLatin' },
+    { pattern:[1,5,1,4], mood:'moodEuropean',      tip:'tipBossaSophis' },
   ],
 };
 
@@ -177,10 +181,10 @@ function getLocalGPSRoutes(curChord, chords, selGenre, levelDef, mode) {
         const degPath = [degIdx, ...remaining.slice(0, routeChords.length)]
           .map(d => DEG_NAMES[d] ?? '?').join('→');
         routes.push({
-          genre: GENRE_PROGS[genre]?.name || genre,
-          mood,
+          genre: genreName(genre),
+          mood: t(mood),
           chords: routeChords,
-          tip: `${tip}  ${degPath}`,
+          tip: `${t(tip)}  ${degPath}`,
         });
         seen.add(key);
       }
@@ -191,8 +195,8 @@ function getLocalGPSRoutes(curChord, chords, selGenre, levelDef, mode) {
 
 // ── GPS 루트 API 호출 ────────────────────────────────────────────
 async function fetchGPSRoutes({ progression, curChord, activeKey, selMode, selLevel, selGenre, appUserId, chords }) {
-  const levelStr  = selLevel === 'beginner' ? '입문' : selLevel === 'mid' ? '중급' : '재즈';
-  const genreName = GENRE_PROGS[selGenre]?.name || '팝';
+  const levelStr   = selLevel === 'beginner' ? '입문' : selLevel === 'mid' ? '중급' : '재즈';
+  const genreLabel = GENRE_PROGS[selGenre]?.name || '팝';
 
   // 진행 도수 패턴 문자열
   const degNames  = ['I','II','III','IV','V','VI','VII'];
@@ -221,7 +225,7 @@ async function fetchGPSRoutes({ progression, curChord, activeKey, selMode, selLe
       }
       if (score > bestScore) { bestScore = score; best = g; }
     }
-    return bestScore >= 2 ? (GENRE_KO[best] || best) : null;
+    return bestScore >= 2 ? genreName(best) : null;
   })();
 
   // AI GPS = Cloudflare Worker(Gemini) 프록시. 프리미엄 검증·API키는 서버에.
@@ -235,7 +239,7 @@ async function fetchGPSRoutes({ progression, curChord, activeKey, selMode, selLe
       progression: progNames,
       progDeg,
       detectedGenre: detectedG,
-      genre: genreName,
+      genre: genreLabel,
       level: levelStr,
       key: activeKey,
       mode: selMode,
@@ -275,19 +279,19 @@ function getTechniques(curChord, chords, key, mode) {
   // 1. 대리코드
   const subs = [];
   if (degIdx === 0 && chords[5])
-    subs.push({ label: chords[5].name, note: chords[5].note, quality: chords[5].quality, hint: 'VI 대리' });
+    subs.push({ label: chords[5].name, note: chords[5].note, quality: chords[5].quality, hint: t('hintSubVI') });
   if (degIdx === 5 && chords[0])
-    subs.push({ label: chords[0].name, note: chords[0].note, quality: chords[0].quality, hint: 'I 대리' });
+    subs.push({ label: chords[0].name, note: chords[0].note, quality: chords[0].quality, hint: t('hintSubI') });
   if (degIdx === 4) {
     const tNote = NOTES[(r + 6) % 12];
-    subs.push({ label: tNote + '7', note: tNote, quality: 'maj', hint: '삼전음' });
+    subs.push({ label: tNote + '7', note: tNote, quality: 'maj', hint: t('hintTritone') });
     if (chords[1]) subs.push({ label: chords[1].name, note: chords[1].note, quality: chords[1].quality, hint: 'II-V' });
   }
   if (degIdx === 1 && chords[3])
-    subs.push({ label: chords[3].name, note: chords[3].note, quality: chords[3].quality, hint: 'IV 대리' });
+    subs.push({ label: chords[3].name, note: chords[3].note, quality: chords[3].quality, hint: t('hintSubIV') });
   if (subs.length) groups.push({
-    type: '대리코드',
-    desc: `${curChord.name} 자리를 대신할 수 있는 코드`,
+    type: t('techSubstitute'),
+    desc: t('techSubstituteDesc', { chord: curChord.name }),
     items: subs,
   });
 
@@ -295,41 +299,41 @@ function getTechniques(curChord, chords, key, mode) {
   const n = curChord.note;
   if (curChord.quality === 'maj') {
     const items = [
-      { label: n,          note: n, quality: 'maj', hint: '원코드' },
+      { label: n,          note: n, quality: 'maj', hint: t('hintOriginal') },
       { label: n + 'maj7', note: n, quality: 'maj', hint: '7↓' },
       { label: n + '7',    note: n, quality: 'maj', hint: '♭7↓' },
       { label: n + '6',    note: n, quality: 'maj', hint: '6↓' },
     ];
-    const t = [r, (r + 4) % 12, (r + 7) % 12]; // 유지 트라이어드
+    const triad = [r, (r + 4) % 12, (r + 7) % 12]; // 유지 트라이어드 (변수명 t 금지 — i18n t()를 가림)
     attachVoiceLed(items, [
-      { pcs: t,                    bassPc: r, rootPc: r },
-      { pcs: [...t, (r + 11) % 12], bassPc: r, rootPc: r },
-      { pcs: [...t, (r + 10) % 12], bassPc: r, rootPc: r },
-      { pcs: [...t, (r + 9) % 12],  bassPc: r, rootPc: r },
+      { pcs: triad,                    bassPc: r, rootPc: r },
+      { pcs: [...triad, (r + 11) % 12], bassPc: r, rootPc: r },
+      { pcs: [...triad, (r + 10) % 12], bassPc: r, rootPc: r },
+      { pcs: [...triad, (r + 9) % 12],  bassPc: r, rootPc: r },
     ]);
     groups.push({
-      type: '클리셰',
-      desc: `7음 하강 · ${n} → ${n}maj7 → ${n}7 → ${n}6`,
+      type: t('techCliche'),
+      desc: t('techClicheDesc', { seq: `${n} → ${n}maj7 → ${n}7 → ${n}6` }),
       items,
       useAll: true,
     });
   } else if (curChord.quality === 'min') {
     const items = [
-      { label: n + 'm',   note: n, quality: 'min', hint: '원코드' },
+      { label: n + 'm',   note: n, quality: 'min', hint: t('hintOriginal') },
       { label: n + 'mMaj7', note: n, quality: 'min', hint: '7↓' },
       { label: n + 'm7',  note: n, quality: 'min', hint: '♭7↓' },
       { label: n + 'm6',  note: n, quality: 'min', hint: '6↓' },
     ];
-    const t = [r, (r + 3) % 12, (r + 7) % 12];
+    const triad = [r, (r + 3) % 12, (r + 7) % 12];
     attachVoiceLed(items, [
-      { pcs: t,                    bassPc: r, rootPc: r },
-      { pcs: [...t, (r + 11) % 12], bassPc: r, rootPc: r },
-      { pcs: [...t, (r + 10) % 12], bassPc: r, rootPc: r },
-      { pcs: [...t, (r + 9) % 12],  bassPc: r, rootPc: r },
+      { pcs: triad,                    bassPc: r, rootPc: r },
+      { pcs: [...triad, (r + 11) % 12], bassPc: r, rootPc: r },
+      { pcs: [...triad, (r + 10) % 12], bassPc: r, rootPc: r },
+      { pcs: [...triad, (r + 9) % 12],  bassPc: r, rootPc: r },
     ]);
     groups.push({
-      type: '클리셰',
-      desc: `7음 하강 · ${n}m → ${n}mMaj7 → ${n}m7 → ${n}m6`,
+      type: t('techCliche'),
+      desc: t('techClicheDesc', { seq: `${n}m → ${n}mMaj7 → ${n}m7 → ${n}m6` }),
       items,
       useAll: true,
     });
@@ -342,7 +346,7 @@ function getTechniques(curChord, chords, key, mode) {
     const b5 = NOTES[(r + 7)  % 12];
     const vi = chords[5];
     const items = [
-      { label: n,                              note: n,        quality: 'maj', hint: '루트' },
+      { label: n,                              note: n,        quality: 'maj', hint: t('hintRoot') },
       { label: `${n}maj7/${b7}`,               note: n,        quality: 'maj', hint: `/${b7}` },
       { label: vi ? vi.name : '?',             note: vi?.note, quality: 'min', hint: `/${b6}` },
       { label: vi ? `${vi.name}7/${b5}` : '?', note: vi?.note, quality: 'min', hint: `/${b5}` },
@@ -357,7 +361,7 @@ function getTechniques(curChord, chords, key, mode) {
       ], true); // 베이스하강: 피아노 오디오 베이스가 C 아래로 하강해야 하므로 pShape 부착
     }
     groups.push({
-      type: '베이스 하강',
+      type: t('techBassDown'),
       desc: `${n} → ${n}maj7 → ${vi?.name || '?'} → ${vi?.name || '?'}7`,
       items,
       useAll: true,
@@ -376,7 +380,7 @@ function getTechniques(curChord, chords, key, mode) {
       label:   di === degIdx ? ch.name : `${ch.name}/${pedNote}`,   // 상위코드 품질 포함 (Dm/A 등)
       note:    di === degIdx ? ch.note : pedNote,   // 슬래시 항목: context는 페달음
       quality: ch.quality,                           // 인터벌 계산용 상위코드 quality 보존
-      hint:    di === degIdx ? '페달 루트' : `/${pedNote}`,
+      hint:    di === degIdx ? t('hintPedalRoot') : `/${pedNote}`,
     };
   });
   // 페달음(P)을 베이스로 유지하며 상성부만 보이스리딩
@@ -387,8 +391,8 @@ function getTechniques(curChord, chords, key, mode) {
     return { pcs: iv.map(x => (uR + x) % 12), bassPc: pedP, rootPc: uR };
   }));
   groups.push({
-    type: '페달 포인트',
-    desc: `${pedNote}음을 유지하며 상성부만 진행`,
+    type: t('techPedal'),
+    desc: t('techPedalDesc', { note: pedNote }),
     items: pedItems,
     useAll: true,
   });
@@ -404,9 +408,9 @@ function getTechniques(curChord, chords, key, mode) {
   });
   if (secDomItems.length) {
     groups.push({
-      type: '세컨더리 도미넌트',
-      desc: '다음 코드를 향한 V7 — 강한 해결감·긴장감 연출',
-      info: '다이아토닉 밖의 dom7이지만 "다음 코드의 V" 역할로 자연스럽게 들림',
+      type: t('techSecDom'),
+      desc: t('techSecDomDesc'),
+      info: t('techSecDomInfo'),
       items: secDomItems,
     });
   }
@@ -423,15 +427,15 @@ function getTechniques(curChord, chords, key, mode) {
           label:   pc.name,
           note:    pc.note,
           quality: pc.quality,
-          hint:    `${parallelMode === 'minor' ? '단조' : '장조'} 차용`,
+          hint:    t('hintBorrow', { mode: t(parallelMode === 'minor' ? 'minor' : 'major') }),
         });
       }
     });
     if (borrowedItems.length) {
       groups.push({
-        type: '모달 인터체인지',
-        desc: `평행 ${parallelMode === 'minor' ? '단조' : '장조'}에서 차용 — 색채감·어두움 추가`,
-        info: '같은 으뜸음의 다른 조성 코드를 빌려 쓰는 기법. 예: C장조에서 Fm(단조의 IV) 사용',
+        type: t('techModal'),
+        desc: t('techModalDesc', { mode: t(parallelMode === 'minor' ? 'minor' : 'major') }),
+        info: t('techModalInfo'),
         items: borrowedItems,
       });
     }
@@ -443,13 +447,13 @@ function getTechniques(curChord, chords, key, mode) {
   const perf5th = NOTES[(r + 7) % 12];
   const min7th  = NOTES[(r + 10) % 12];
   // note: n (현재 코드 루트) → 기법제안 컨텍스트 유지; 피아노 인터벌은 상위코드에서 재파싱
-  polyItems.push({ label: `${maj3rd}/${n}`,  note: n, quality: curChord.quality, hint: '장3도 쌓기' });
-  polyItems.push({ label: `${perf5th}m/${n}`,note: n, quality: curChord.quality, hint: '5도 쌓기' });
-  polyItems.push({ label: `${min7th}/${n}`,  note: n, quality: curChord.quality, hint: '7도 쌓기' });
+  polyItems.push({ label: `${maj3rd}/${n}`,  note: n, quality: curChord.quality, hint: t('hintStackM3') });
+  polyItems.push({ label: `${perf5th}m/${n}`,note: n, quality: curChord.quality, hint: t('hintStack5') });
+  polyItems.push({ label: `${min7th}/${n}`,  note: n, quality: curChord.quality, hint: t('hintStack7') });
   groups.push({
-    type: '폴리코드',
-    desc: `두 코드를 겹쳐 현대적·영화음악 색채 연출`,
-    info: '분수 표기 (위/아래): 아래 코드 베이스 위에 위 코드를 쌓음. 피아노·현악에 효과적',
+    type: t('techPoly'),
+    desc: t('techPolyDesc'),
+    info: t('techPolyInfo'),
     items: polyItems,
   });
 
@@ -460,9 +464,9 @@ function getTechniques(curChord, chords, key, mode) {
   const V  = chords[4];
   if (I && VI && II && V) {
     groups.push({
-      type: '턴어라운드',
-      desc: 'I-VI-II-V — 재즈 핵심 순환, 자연스럽게 I로 귀결',
-      info: '재즈의 가장 기본적인 순환 진행. 어떤 조성에서든 응용 가능',
+      type: t('techTurnaround'),
+      desc: t('techTurnaroundDesc'),
+      info: t('techTurnaroundInfo'),
       items: [
         { label: I.note  + 'maj7', note: I.note,  quality: 'maj', hint: 'I' },
         { label: VI.note + '7',    note: VI.note, quality: 'min', hint: 'VI' },
@@ -479,12 +483,12 @@ function getTechniques(curChord, chords, key, mode) {
     const vIdx       = ki(V.note);
     const triNote    = NOTES[(vIdx + 6) % 12];
     groups.push({
-      type: '트리톤 대리',
-      desc: `${V.note}7 대신 ${triNote}7 — 반음 하강 베이스라인 생성`,
-      info: '도미넌트 7th를 삼전음(6반음) 위의 코드로 교체. 3음↔7음이 서로 교환되어 해결감 유지',
+      type: t('techTritone'),
+      desc: t('techTritoneDesc', { v: V.note, tri: triNote }),
+      info: t('techTritoneInfo'),
       items: [
-        { label: V.note  + '7',  note: V.note,  quality: 'maj', hint: `원래 V7` },
-        { label: triNote + '7',  note: triNote, quality: 'maj', hint: `삼전음 대리` },
+        { label: V.note  + '7',  note: V.note,  quality: 'maj', hint: t('hintOrigV7') },
+        { label: triNote + '7',  note: triNote, quality: 'maj', hint: t('hintTritoneSub') },
       ],
       premium: true,
     });
@@ -644,16 +648,16 @@ export default function ChordsTab({ onTranspose }) {
 
   // 장·단 전환: 선택된 코드의 3도를 뒤집어 마이너↔메이저 (Cmaj7↔Cm7 등) — 진행 슬롯도 함께
   function flipCurChordMinor() {
-    if (!curChord) { Alert.alert('먼저 코드를 선택하세요'); return; }
+    if (!curChord) { Alert.alert(t('alertSelectChordFirst')); return; }
     const q = curChord.quality;
     if (q !== 'maj' && q !== 'min') {
-      Alert.alert('전환할 수 없어요', '이 코드 종류(감·서스펜디드 등)는 장/단 전환 대상이 아니에요.');
+      Alert.alert(t('alertCantFlip'), t('alertCantFlipKind'));
       return;
     }
     const toMin = q === 'maj';
     const nv = flipVariant(curVar, toMin);
     if (nv == null) {
-      Alert.alert('전환할 수 없어요', `이 코드 종류는 대응하는 ${toMin ? '마이너' : '메이저'} 형태가 없어요.`);
+      Alert.alert(t('alertCantFlip'), t('alertNoFlipForm', { mode: t(toMin ? 'minor' : 'major') }));
       return;
     }
     const newQual = toMin ? 'min' : 'maj';
@@ -677,7 +681,7 @@ export default function ChordsTab({ onTranspose }) {
 
   // 진행 전체를 단조(또는 장조)로 — 해당 방향 코드만 변환
   function convertProgressionMinor(toMin) {
-    if (!progression.length) { Alert.alert('진행이 없습니다'); return; }
+    if (!progression.length) { Alert.alert(t('noProgression')); return; }
     setProgression(prev => prev.map(p => {
       if (toMin && p.quality === 'maj') {
         const nv = flipVariant(p.variant, true);
@@ -693,11 +697,11 @@ export default function ChordsTab({ onTranspose }) {
   // "장·단 전환" 버튼 → 적용 범위 선택
   function onMinorConvert() {
     const curLabel = curChord ? ` (${flatChordName(curChord.note + (curVar || ''), activeKey, selMode)})` : '';
-    Alert.alert('장·단 전환', '코드를 마이너↔메이저로 바꿉니다.', [
-      { text: `이 코드만${curLabel}`, onPress: flipCurChordMinor },
-      { text: '진행 전체 → 단조', onPress: () => convertProgressionMinor(true) },
-      { text: '진행 전체 → 장조', onPress: () => convertProgressionMinor(false) },
-      { text: '취소', style: 'cancel' },
+    Alert.alert(t('flipTitle'), t('flipBody'), [
+      { text: `${t('flipThisOnly')}${curLabel}`, onPress: flipCurChordMinor },
+      { text: t('flipAllMinor'), onPress: () => convertProgressionMinor(true) },
+      { text: t('flipAllMajor'), onPress: () => convertProgressionMinor(false) },
+      { text: t('cancel'), style: 'cancel' },
     ]);
   }
 
@@ -962,7 +966,7 @@ export default function ChordsTab({ onTranspose }) {
   // BPM 직접 입력
   function promptBpm() {
     Alert.prompt(
-      '템포 설정',
+      t('bpmTitle'),
       '40 ~ 200 BPM',
       (val) => {
         const n = parseInt(val, 10);
@@ -976,11 +980,11 @@ export default function ChordsTab({ onTranspose }) {
 
   // ── MIDI 내보내기 ─────────────────────────────────────────────
   async function handleExportMIDI() {
-    if (!progression.length) { Alert.alert('진행이 없습니다'); return; }
+    if (!progression.length) { Alert.alert(t('noProgression')); return; }
     try {
       await exportMIDI(progression, bpm);
     } catch (e) {
-      Alert.alert('MIDI 내보내기 실패', e.message);
+      Alert.alert(t('midiExportFail'), e.message);
     }
   }
 
@@ -988,7 +992,7 @@ export default function ChordsTab({ onTranspose }) {
   async function handleSave() {
     const ok = await saveProg();
     if (ok) { loadSaved(); setShowSaved(true); }
-    else Alert.alert('진행이 없습니다');
+    else Alert.alert(t('noProgression'));
   }
 
   function handleLoad(p) {
@@ -1009,9 +1013,9 @@ export default function ChordsTab({ onTranspose }) {
   }
 
   function confirmDeleteSaved(i) {
-    Alert.alert('삭제', '이 진행을 삭제할까요?', [
-      { text: '취소', style: 'cancel' },
-      { text: '삭제', style: 'destructive', onPress: () => deleteSaved(i) },
+    Alert.alert(t('del'), t('deleteProgConfirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('del'), style: 'destructive', onPress: () => deleteSaved(i) },
     ]);
   }
 
@@ -1072,10 +1076,10 @@ export default function ChordsTab({ onTranspose }) {
         onRequestClose={() => setMeasureEditVisible(false)}>
         <View style={styles.measBackdrop}>
           <View style={styles.measCard}>
-            <Text style={styles.measTitle}>마디 수정</Text>
-            <Text style={styles.measHint}>코드 사이를 눌러 마디줄(▐)을 옮기세요</Text>
+            <Text style={styles.measTitle}>{t('measureEdit')}</Text>
+            <Text style={styles.measHint}>{t('measureEditHint')}</Text>
             {progression.length < 2 ? (
-              <Text style={styles.measEmpty}>마디를 나누려면 코드를 2개 이상 넣어주세요.</Text>
+              <Text style={styles.measEmpty}>{t('measureEditEmpty')}</Text>
             ) : (
             <View style={styles.measRow}>
               {progression.map((p, i) => (
@@ -1095,7 +1099,7 @@ export default function ChordsTab({ onTranspose }) {
             </View>
             )}
             <TouchableOpacity style={styles.measDoneBtn} onPress={() => setMeasureEditVisible(false)}>
-              <Text style={styles.measDoneTxt}>완료</Text>
+              <Text style={styles.measDoneTxt}>{t('done')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1105,17 +1109,17 @@ export default function ChordsTab({ onTranspose }) {
       <View style={styles.histSection}>
         {/* 헤더 1줄: 제목 + 저장/불러오기/초기화 */}
         <View style={styles.histHeaderRow1}>
-          <Text style={styles.miniLabel}>내 진행 ({progression.length}/{maxProg})</Text>
+          <Text style={styles.miniLabel}>{t('myProgression')} ({progression.length}/{maxProg})</Text>
           <View style={styles.histControls}>
             <TouchableOpacity style={styles.ctrlBtn} onPress={handleSave}>
               <Text style={styles.ctrlBtnTxt}>☆</Text>
-              <Text style={styles.ctrlBtnLabel}>저장</Text>
+              <Text style={styles.ctrlBtnLabel}>{t('save')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.ctrlBtn, showSaved && styles.ctrlBtnActive]}
               onPress={() => { loadSaved(); setShowSaved(v => !v); }}>
               <Text style={[styles.ctrlBtnTxt, showSaved && styles.ctrlBtnActiveTxt]}>↑</Text>
-              <Text style={[styles.ctrlBtnLabel, showSaved && styles.ctrlBtnActiveTxt]}>불러오기</Text>
+              <Text style={[styles.ctrlBtnLabel, showSaved && styles.ctrlBtnActiveTxt]}>{t('load')}</Text>
             </TouchableOpacity>
             {progression.length > 0 && (
               <TouchableOpacity style={styles.ctrlBtn} onPress={handleExportMIDI}>
@@ -1126,7 +1130,7 @@ export default function ChordsTab({ onTranspose }) {
             {progression.length > 0 && (
               <TouchableOpacity style={styles.ctrlBtn} onPress={clearHistory}>
                 <Text style={styles.ctrlBtnTxt}>✕</Text>
-                <Text style={styles.ctrlBtnLabel}>초기화</Text>
+                <Text style={styles.ctrlBtnLabel}>{t('reset')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -1138,7 +1142,7 @@ export default function ChordsTab({ onTranspose }) {
               style={[styles.instrBtn, curInstr === instr && styles.instrBtnSel]}
               onPress={() => { setCurInstr(instr); setDiagPosIdx(0); setPlayShapeIdx(0); }}>
               <Text style={[styles.instrBtnText, curInstr === instr && styles.instrBtnTextSel]}>
-                {instr === 'guitar' ? '기타' : '피아노'}
+                {instr === 'guitar' ? t('guitar') : t('piano')}
               </Text>
             </TouchableOpacity>
           ))}
@@ -1148,7 +1152,7 @@ export default function ChordsTab({ onTranspose }) {
               style={[styles.instrBtn, strumMode === mode && styles.instrBtnSel]}
               onPress={() => setStrumMode(mode)}>
               <Text style={[styles.instrBtnText, strumMode === mode && styles.instrBtnTextSel]}>
-                {mode === 'strum' ? '스트럼' : '아르페지오'}
+                {mode === 'strum' ? t('strum') : t('arpeggio')}
               </Text>
             </TouchableOpacity>
           ))}
@@ -1163,7 +1167,7 @@ export default function ChordsTab({ onTranspose }) {
               {playing ? '■' : '▶'}
             </Text>
             <Text style={[styles.playBigLabel, playing && styles.playBigIconStop]}>
-              {playing ? '정지' : '재생'}
+              {playing ? t('stop') : t('play')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.bpmBigWrap} onPress={promptBpm} activeOpacity={0.7}>
@@ -1182,7 +1186,7 @@ export default function ChordsTab({ onTranspose }) {
           </TouchableOpacity>
           <TouchableOpacity style={styles.measRowBtn} onPress={() => setMeasureEditVisible(true)}>
             <Text style={styles.measRowBtnIcon}>▐</Text>
-            <Text style={styles.measRowBtnTxt}>마디</Text>
+            <Text style={styles.measRowBtnTxt}>{t('bars')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -1190,11 +1194,11 @@ export default function ChordsTab({ onTranspose }) {
         {showSaved && (
           <View style={styles.savedList}>
             {!saved.length
-              ? <Text style={styles.savedEmpty}>저장된 진행 없음</Text>
+              ? <Text style={styles.savedEmpty}>{t('savedEmpty')}</Text>
               : saved.map((p, i) => (
                   <TouchableOpacity key={i} style={styles.savedItem} onPress={() => handleLoad(p)}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.savedMeta}>{p.key} {p.mode === 'major' ? '장' : '단'}조 · {p.date}</Text>
+                      <Text style={styles.savedMeta}>{p.key} {p.mode === 'major' ? t('major') : t('minor')} · {p.date}</Text>
                       <Text style={styles.savedChords} numberOfLines={1}>
                         {p.chords.map(n => displayChordName(n, p.key, p.mode)).join(' → ')}
                       </Text>
@@ -1220,7 +1224,7 @@ export default function ChordsTab({ onTranspose }) {
               return (
                 <View key={mIdx} style={[styles.measureBlock, mIdx > 0 && styles.measureBlockSep]}>
                   <View style={styles.measureHeaderRow}>
-                    <Text style={styles.measureLabel}>마디 {mIdx + 1}</Text>
+                    <Text style={styles.measureLabel}>{t('measureN', { n: mIdx + 1 })}</Text>
                     <View style={{ flexDirection:'row', gap:4 }}>
                       {/* 빈 마디이거나 2번째 이상 마디는 삭제 가능 — 왼쪽 */}
                       {(mIdx > 0 || slice.length === 0) && (
@@ -1246,7 +1250,7 @@ export default function ChordsTab({ onTranspose }) {
                           </TouchableOpacity>
                         </View>
                       )
-                      : <Text style={styles.emptyMeasureTxt}>빈 마디</Text>
+                      : <Text style={styles.emptyMeasureTxt}>{t('emptyMeasure')}</Text>
                     : (
                       <View style={styles.measureChips}>
                         {slice.map((p, si) => {
@@ -1300,7 +1304,7 @@ export default function ChordsTab({ onTranspose }) {
             })}
           </View>
         ) : (
-          <Text style={styles.histEmptyTxt}>코드를 선택하면 진행이 쌓입니다</Text>
+          <Text style={styles.histEmptyTxt}>{t('histEmpty')}</Text>
         )}
 
         {/* ── 운지 (진행 바로 아래) — 재생 중엔 연주 코드 따라가고, 멈추면 마지막 코드 유지 ── */}
@@ -1331,7 +1335,7 @@ export default function ChordsTab({ onTranspose }) {
           const chordIntervals = VAR_IV[vk] || (dispChord.quality === 'min' ? [0,3,7] : [0,4,7]);
           const maxInv   = Math.min(2, chordIntervals.length - 1);
           const pianoInv = isPlay ? 0 : Math.min(diagPosIdx, maxInv);
-          const PIANO_LABELS = ['루트 포지션', '1전위', '2전위'];
+          const PIANO_LABELS = [t('pianoRootPos'), t('pianoInv1'), t('pianoInv2')];
 
           // 구성음 (슬래시면 상위코드 기준) + 표시 기타 운지의 실제 발음음
           const tonesRoot = hasSlash ? chordNameToNote(chordPart) : dispChord.note;
@@ -1356,22 +1360,22 @@ export default function ChordsTab({ onTranspose }) {
             pianoDisplayName += '/' + invBassNote;
           }
           const invHintText = hasSlash
-            ? `분수코드 ${PIANO_LABELS[pianoInv]} — ${slashBassDisp}이 최저음 (고정)`
+            ? t('slashInvHint', { inv: PIANO_LABELS[pianoInv], bass: slashBassDisp })
             : pianoInv === 0
-              ? `루트 포지션 — ${flatNote(dispChord.note, activeKey, selMode)}이 최저음`
-              : `${PIANO_LABELS[pianoInv]} — ${invBassNote}이 최저음`;
+              ? t('rootPosHint', { note: flatNote(dispChord.note, activeKey, selMode) })
+              : t('invHint', { inv: PIANO_LABELS[pianoInv], note: invBassNote });
 
           return (
             <View style={styles.diagSection}>
               <View style={styles.diagHeader}>
-                <Text style={styles.miniLabel}>운지{isPlay ? ' · 재생 중' : ''}</Text>
+                <Text style={styles.miniLabel}>{t('fingering')}{isPlay ? ` · ${t('nowPlaying')}` : ''}</Text>
                 <View style={styles.instrToggle}>
                   {['guitar','piano'].map(instr => (
                     <TouchableOpacity key={instr}
                       style={[styles.instrBtn, curInstr === instr && styles.instrBtnSel]}
                       onPress={() => { setCurInstr(instr); setDiagPosIdx(0); }}>
                       <Text style={[styles.instrBtnText, curInstr === instr && styles.instrBtnTextSel]}>
-                        {instr === 'guitar' ? '기타' : '피아노'}
+                        {instr === 'guitar' ? t('guitar') : t('piano')}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -1381,7 +1385,7 @@ export default function ChordsTab({ onTranspose }) {
                       style={[styles.instrBtn, strumMode === mode && styles.instrBtnSel]}
                       onPress={() => setStrumMode(mode)}>
                       <Text style={[styles.instrBtnText, strumMode === mode && styles.instrBtnTextSel]}>
-                        {mode === 'strum' ? '스트럼' : '아르페지오'}
+                        {mode === 'strum' ? t('strum') : t('arpeggio')}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -1394,7 +1398,7 @@ export default function ChordsTab({ onTranspose }) {
                       style={[styles.posBtn, guitarIdx === i && styles.posBtnSel]}
                       onPress={() => setDiagPosIdx(i)}>
                       <Text style={[styles.posBtnText, guitarIdx === i && styles.posBtnTextSel]}>
-                        {p.pos || `${i + 1}포지션`}
+                        {p.pos || t('positionN', { n: i + 1 })}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -1425,12 +1429,12 @@ export default function ChordsTab({ onTranspose }) {
                       <Text style={styles.diagToneSep}> / </Text>
                     </React.Fragment>
                   )}
-                  {dTones.map((t, i) => {
-                    const isOmitted = dPlayed && !dPlayed.has(t);
+                  {dTones.map((tn, i) => {
+                    const isOmitted = dPlayed && !dPlayed.has(tn);
                     return (
                       <React.Fragment key={i}>
                         {i > 0 && <Text style={styles.diagToneSep}> · </Text>}
-                        <Text style={[styles.diagTone, i === 0 && styles.diagToneRoot, isOmitted && styles.diagToneOmitted]}>{flatNote(t, activeKey, selMode)}</Text>
+                        <Text style={[styles.diagTone, i === 0 && styles.diagToneRoot, isOmitted && styles.diagToneOmitted]}>{flatNote(tn, activeKey, selMode)}</Text>
                       </React.Fragment>
                     );
                   })}
@@ -1469,13 +1473,13 @@ export default function ChordsTab({ onTranspose }) {
           {detectedGenres.map(g => (
             <View key={g} style={styles.genreBadge}>
               <Text style={styles.genreBadgeTxt}>
-                {GENRE_EMOJI[g]} {GENRE_KO[g]}
+                {GENRE_EMOJI[g]} {genreName(g)}
               </Text>
             </View>
           ))}
           {matchedSongs.length > 0 && (
             <View style={styles.songMatchInner}>
-              <Text style={styles.songMatchLabel}>비슷한 곡</Text>
+              <Text style={styles.songMatchLabel}>{t('similarSongs')}</Text>
               <Text style={styles.songMatchText} numberOfLines={1}>
                 {matchedSongs.join('  ·  ')}
               </Text>
@@ -1483,7 +1487,7 @@ export default function ChordsTab({ onTranspose }) {
           )}
           {isNonDiatonic && (
             <View style={styles.nonDiatonicBadge}>
-              <Text style={styles.nonDiatonicTxt}>✦ 전조 포인트</Text>
+              <Text style={styles.nonDiatonicTxt}>✦ {t('modulationPoint')}</Text>
             </View>
           )}
         </View>
@@ -1492,10 +1496,10 @@ export default function ChordsTab({ onTranspose }) {
       {/* ── 추천 진행 ── */}
       <View style={styles.sugSection}>
         <View style={styles.sugSectionHeader}>
-          <Text style={styles.sugSectionLabel}>추천 진행</Text>
+          <Text style={styles.sugSectionLabel}>{t('suggestedProg')}</Text>
           {detectedGenre && (
             <View style={styles.sugGenreBadge}>
-              <Text style={styles.sugGenreBadgeTxt}>{GENRE_EMOJI[detectedGenre]} {GENRE_KO[detectedGenre]} 스타일</Text>
+              <Text style={styles.sugGenreBadgeTxt}>{GENRE_EMOJI[detectedGenre]} {t('styleSuffix', { genre: genreName(detectedGenre) })}</Text>
             </View>
           )}
         </View>
@@ -1523,18 +1527,18 @@ export default function ChordsTab({ onTranspose }) {
 
       {/* ── 전조 / 헤더 ── */}
       <View style={styles.row}>
-        <Text style={styles.label}>다이아토닉 코드</Text>
+        <Text style={styles.label}>{t('diatonicChords')}</Text>
         {transKey && <View style={styles.badge}><Text style={styles.badgeText}>→{transKey}</Text></View>}
         {transKey && (
           <TouchableOpacity style={styles.smBtn} onPress={() => setTransKey(null)}>
-            <Text style={styles.smBtnText}>✕ 전조 해제</Text>
+            <Text style={styles.smBtnText}>✕ {t('clearTranspose')}</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity style={styles.smBtn} onPress={onTranspose}>
-          <Text style={styles.smBtnText}>🎵 전조</Text>
+          <Text style={styles.smBtnText}>🎵 {t('transpose')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.smBtn} onPress={onMinorConvert}>
-          <Text style={styles.smBtnText}>🎼 장·단</Text>
+          <Text style={styles.smBtnText}>🎼 {t('majMinShort')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -1577,7 +1581,7 @@ export default function ChordsTab({ onTranspose }) {
       {/* ── 예측 안내 텍스트 ── */}
       {curChord && predictedIdxs.length > 0 && (
         <View style={styles.predBox}>
-          <Text style={styles.predLabel}>다음 추천 ›</Text>
+          <Text style={styles.predLabel}>{t('nextSuggest')}</Text>
           <Text style={styles.predChords}>
             {predictedIdxs.map(i => flatChordName(chords[i]?.name, activeKey, selMode)).join('  ·  ')}
           </Text>
@@ -1589,7 +1593,7 @@ export default function ChordsTab({ onTranspose }) {
         <View style={styles.gpsSection}>
           <View style={styles.gpsHeader}>
             <Text style={styles.gpsDot}>◉</Text>
-            <Text style={styles.gpsTitle}>GPS 루트</Text>
+            <Text style={styles.gpsTitle}>{t('gpsRoute')}</Text>
             {gpsLoading
               ? <ActivityIndicator size="small" color={COLORS.blue} style={{ marginLeft: 6 }} />
               : <Text style={styles.gpsSrc}>{isPremium ? 'AI' : '🔒 AI'}</Text>
@@ -1630,7 +1634,7 @@ export default function ChordsTab({ onTranspose }) {
                                 <Text style={[styles.gpsChordText, { color: routeColor }]}>{flatChordName(ch, activeKey, selMode)}</Text>
                               </TouchableOpacity>
                               {role && (
-                                <Text style={[styles.gpsRoleLabel, { color: role.color }]}>{role.label}</Text>
+                                <Text style={[styles.gpsRoleLabel, { color: role.color }]}>{t(role.key)}</Text>
                               )}
                             </View>
                             {ci < route.chords.length - 1 && (
@@ -1646,7 +1650,7 @@ export default function ChordsTab({ onTranspose }) {
                       <TouchableOpacity
                         style={[styles.gpsApplyBtn, { borderColor: routeColor }]}
                         onPress={() => applyRoute(route)}>
-                        <Text style={[styles.gpsApplyText, { color: routeColor }]}>이 루트로</Text>
+                        <Text style={[styles.gpsApplyText, { color: routeColor }]}>{t('useThisRoute')}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -1660,12 +1664,12 @@ export default function ChordsTab({ onTranspose }) {
       {/* ── 변형 코드 ── */}
       {curChord && (
         <>
-          <Text style={[styles.label, { marginTop: 14 }]}>변형 코드</Text>
+          <Text style={[styles.label, { marginTop: 14 }]}>{t('variantChords')}</Text>
           <View style={styles.varRow}>
             {variants.map((v, vi) => {
               const vName  = curChord.note + (v || '');
               const active = curVar === v;
-              const label  = vi === 0 ? vName + ' (기본)' : vName;
+              const label  = vi === 0 ? `${vName} ${t('basicSuffix')}` : vName;
               return (
                 <TouchableOpacity
                   key={v}
@@ -1690,29 +1694,29 @@ export default function ChordsTab({ onTranspose }) {
               : flatChordName(curChord.note + (curVar || ''), activeKey, selMode)}
           </Text>
           <View style={styles.tonesRow}>
-            <Text style={styles.infoText}>구성음: </Text>
+            <Text style={styles.infoText}>{t('chordTones')}: </Text>
             {chordSlashBass && (
               <React.Fragment>
                 <Text style={[styles.infoText, styles.bassTone]}>{chordSlashBass}</Text>
                 <Text style={styles.infoText}> / </Text>
               </React.Fragment>
             )}
-            {tones.map((t, i) => {
-              const isOmitted = playedNotesForTones && !playedNotesForTones.has(t);
+            {tones.map((tn, i) => {
+              const isOmitted = playedNotesForTones && !playedNotesForTones.has(tn);
               return (
                 <React.Fragment key={i}>
                   {i > 0 && <Text style={styles.infoText}> · </Text>}
-                  <Text style={[styles.infoText, i === 0 && styles.rootTone, isOmitted && styles.omittedTone]}>{flatNote(t, activeKey, selMode)}</Text>
+                  <Text style={[styles.infoText, i === 0 && styles.rootTone, isOmitted && styles.omittedTone]}>{flatNote(tn, activeKey, selMode)}</Text>
                 </React.Fragment>
               );
             })}
           </View>
           {subs.length > 0 && (
-            <Text style={styles.infoText}>대리코드: {subs.join(', ')}</Text>
+            <Text style={styles.infoText}>{t('substitutesLabel')}: {subs.join(', ')}</Text>
           )}
         </View>
       ) : (
-        <Text style={styles.hint}>코드를 선택하면 진행이 쌓입니다</Text>
+        <Text style={styles.hint}>{t('histEmpty')}</Text>
       )}
 
       {/* ── 기법 제안 ── */}
@@ -1720,7 +1724,7 @@ export default function ChordsTab({ onTranspose }) {
         const techs = getTechniques(curChord, chords, activeKey, selMode);
         return techs.length > 0 ? (
           <View style={styles.techSection}>
-            <Text style={[styles.label, { marginTop: 14 }]}>기법 제안</Text>
+            <Text style={[styles.label, { marginTop: 14 }]}>{t('techSuggestions')}</Text>
             {techs.map((g, gi) => {
               const locked = g.premium && !isPremium;
               return (
@@ -1738,7 +1742,7 @@ export default function ChordsTab({ onTranspose }) {
                     {!locked && g.useAll && g.items.length >= 1 && (
                       <View style={{ alignItems: 'flex-end', gap: 5 }}>
                         <View style={styles.beatPickerRow}>
-                          {[{l:'♩ 4분', v:1},{l:'♪ 8분', v:0.5},{l:'♩♩ 2분', v:2}].map(({l,v}) => (
+                          {[{l:t('beatQuarter'), v:1},{l:t('beatEighth'), v:0.5},{l:t('beatHalf'), v:2}].map(({l,v}) => (
                             <TouchableOpacity
                               key={v}
                               style={[styles.beatBtn, (techBeatMap[gi] ?? 1) === v && styles.beatBtnSel]}
@@ -1756,7 +1760,7 @@ export default function ChordsTab({ onTranspose }) {
                           <TouchableOpacity
                             style={styles.techUseBtn}
                             onPress={() => replaceWithTech(g.items, techBeatMap[gi] ?? 1)}>
-                            <Text style={styles.techUseBtnText}>→ 사용</Text>
+                            <Text style={styles.techUseBtnText}>{t('useBtn')}</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -1764,8 +1768,8 @@ export default function ChordsTab({ onTranspose }) {
                   </View>
                   {locked ? (
                     <TouchableOpacity style={styles.techLockBanner} onPress={showPaywall}>
-                      <Text style={styles.techLockText}>🔒 프리미엄에서 사용 가능</Text>
-                      <Text style={styles.techLockSub}>탭하여 업그레이드</Text>
+                      <Text style={styles.techLockText}>{t('premiumLocked')}</Text>
+                      <Text style={styles.techLockSub}>{t('tapToUpgrade')}</Text>
                     </TouchableOpacity>
                   ) : g.items.length > 0 ? (
                     <View style={styles.techItems}>
