@@ -72,7 +72,7 @@
 
   <section>
     <h2>AI 분석 기능</h2>
-    <p>AI 분석(Claude) 사용 시, 입력한 코드 진행 데이터가 Anthropic API로 전송됩니다. 사용자 개인 정보는 포함되지 않으며, 전송된 데이터는 분석 목적으로만 사용됩니다.</p>
+    <p>AI 분석을 사용하면 입력한 코드 진행 데이터가 Cloudflare Workers를 거쳐 Google Gemini API로 전송됩니다. 사용자 개인 정보는 포함되지 않으며, 전송된 데이터는 분석 목적으로만 사용됩니다.</p>
   </section>
 
   <section>
@@ -82,7 +82,8 @@
 
   <section>
     <h2>제3자 서비스</h2>
-    <p>• Anthropic (Claude AI) — AI 분석
+    <p>• Google (Gemini AI) — AI 분석 처리
+• Cloudflare (Workers) — AI 요청 중계
 • RevenueCat — 구독 관리
 • Apple App Store — 결제 처리
 
@@ -91,7 +92,7 @@
 
   <section>
     <h2>데이터 보안</h2>
-    <p>앱은 별도의 서버를 운영하지 않으며 사용자 데이터를 수집·저장·판매하지 않습니다.</p>
+    <p>앱은 사용자 데이터를 수집·저장·판매하지 않습니다. AI 요청 중계 서버는 구독 확인용 앱 사용자 ID와 그날의 사용 횟수만 기록하며(48시간 후 자동 삭제), 입력한 코드 진행은 저장하지 않습니다. 이 ID는 이름·이메일 등 개인 정보와 연결되지 않습니다.</p>
   </section>
 
   <section>
