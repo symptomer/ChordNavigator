@@ -2,7 +2,7 @@
   "expo": {
     "name": "ChordNavigator",
     "slug": "ChordNavigator",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -16,7 +16,19 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.symptomer.chordnavigator",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleLocalizations": [
+          "ko",
+          "en",
+          "ja",
+          "zh-Hans",
+          "es",
+          "fr",
+          "de",
+          "pt-BR",
+          "ru",
+          "it"
+        ]
       }
     },
     "android": {
