@@ -5,27 +5,28 @@ import {
 } from 'react-native';
 import { usePurchase } from '../context/PurchaseContext';
 import { COLORS } from '../data/musicData';
+import { t } from '../i18n';
 
 const EULA_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 const PRIVACY_URL = 'https://symptomer.github.io/ChordNavigator/privacy-policy.html';
 
-const FREE_FEATURES = [
-  '키 / 장단조 선택',
-  '다이아토닉 코드 7개 (입문·중급)',
-  '코드 사운드 재생',
-  '기타·피아노 운지',
-  '규칙 기반 GPS 루트',
-  '진행 저장 무제한',
-  '마디 무제한',
+const FREE_FEATURE_KEYS = [
+  'pwKeyMode',
+  'pwDiatonic7',
+  'pwChordSound',
+  'pwFingering',
+  'pwRuleGps',
+  'pwSaveUnlimited',
+  'pwBarsUnlimited',
 ];
 
-const PREMIUM_FEATURES = [
-  '모든 무료 기능 포함',
-  '재즈 레벨 코드 (텐션·대리)',
-  'AI GPS 루트 추천',
-  'AI 진행 분석·추천',
-  '직접 코드 입력 후 AI 분석',
-  'MIDI 내보내기',
+const PREMIUM_FEATURE_KEYS = [
+  'pwAllFree',
+  'pwJazzLevel',
+  'pwAiGps',
+  'pwAiAnalysis',
+  'pwCustomAi',
+  'pwMidi',
 ];
 
 export default function PaywallScreen() {
@@ -43,27 +44,27 @@ export default function PaywallScreen() {
 
           {/* 헤더 */}
           <Text style={styles.crown}>♪</Text>
-          <Text style={styles.title}>ChordNavigator{'\n'}프리미엄</Text>
-          <Text style={styles.sub}>코드 이론의 모든 것, 제한 없이</Text>
+          <Text style={styles.title}>ChordNavigator{'\n'}{t('premiumWord')}</Text>
+          <Text style={styles.sub}>{t('pwSub')}</Text>
 
           {/* 비교표 */}
           <View style={styles.compareRow}>
             <View style={[styles.compareCol, styles.freeCol]}>
-              <Text style={styles.colTitle}>무료</Text>
-              {FREE_FEATURES.map(f => (
-                <View key={f} style={styles.featureRow}>
+              <Text style={styles.colTitle}>{t('pwFreeCol')}</Text>
+              {FREE_FEATURE_KEYS.map(k => (
+                <View key={k} style={styles.featureRow}>
                   <Text style={styles.featureIcon}>·</Text>
-                  <Text style={styles.featureTxt}>{f}</Text>
+                  <Text style={styles.featureTxt}>{t(k)}</Text>
                 </View>
               ))}
             </View>
 
             <View style={[styles.compareCol, styles.premiumCol]}>
-              <Text style={[styles.colTitle, { color: COLORS.accent }]}>프리미엄 ✦</Text>
-              {PREMIUM_FEATURES.map(f => (
-                <View key={f} style={styles.featureRow}>
+              <Text style={[styles.colTitle, { color: COLORS.accent }]}>{t('premiumWord')} ✦</Text>
+              {PREMIUM_FEATURE_KEYS.map(k => (
+                <View key={k} style={styles.featureRow}>
                   <Text style={[styles.featureIcon, { color: COLORS.accent }]}>✓</Text>
-                  <Text style={[styles.featureTxt, { color: COLORS.text }]}>{f}</Text>
+                  <Text style={[styles.featureTxt, { color: COLORS.text }]}>{t(k)}</Text>
                 </View>
               ))}
             </View>
@@ -72,34 +73,31 @@ export default function PaywallScreen() {
           {/* 구매 버튼 */}
           {lifetimePkg && (
             <TouchableOpacity style={styles.lifetimeBtn} onPress={purchaseLifetime}>
-              <Text style={styles.lifetimeBtnBadge}>베스트</Text>
-              <Text style={styles.lifetimeBtnTitle}>평생 이용</Text>
-              <Text style={styles.lifetimeBtnPrice}>{lifetimePrice}  <Text style={styles.lifetimeBtnOnce}>1회 결제</Text></Text>
+              <Text style={styles.lifetimeBtnBadge}>{t('pwBest')}</Text>
+              <Text style={styles.lifetimeBtnTitle}>{t('pwLifetime')}</Text>
+              <Text style={styles.lifetimeBtnPrice}>{lifetimePrice}  <Text style={styles.lifetimeBtnOnce}>{t('pwOnce')}</Text></Text>
             </TouchableOpacity>
           )}
 
           <TouchableOpacity style={[styles.monthlyBtn, !lifetimePkg && styles.monthlyBtnPrimary]} onPress={purchaseMonthly}>
-            <Text style={styles.monthlyBtnTitle}>월간 구독</Text>
-            <Text style={styles.monthlyBtnPrice}>{monthlyPrice} / 월 · 첫 달 무료</Text>
+            <Text style={styles.monthlyBtnTitle}>{t('pwMonthly')}</Text>
+            <Text style={styles.monthlyBtnPrice}>{t('pwPerMonthFree', { price: monthlyPrice })}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.restoreBtn} onPress={restorePurchases}>
-            <Text style={styles.restoreTxt}>구매 복원</Text>
+            <Text style={styles.restoreTxt}>{t('pwRestore')}</Text>
           </TouchableOpacity>
 
-          <Text style={styles.legal}>
-            구독은 언제든지 취소 가능합니다. 결제는 App Store를 통해 이루어집니다.{'\n'}
-            첫 달 무료 체험 후 자동 갱신됩니다.
-          </Text>
+          <Text style={styles.legal}>{t('pwLegal')}</Text>
 
           {/* 이용약관 / 개인정보처리방침 링크 */}
           <View style={styles.legalLinks}>
             <TouchableOpacity onPress={() => Linking.openURL(EULA_URL)}>
-              <Text style={styles.legalLink}>이용약관</Text>
+              <Text style={styles.legalLink}>{t('pwTerms')}</Text>
             </TouchableOpacity>
             <Text style={styles.legalSep}> · </Text>
             <TouchableOpacity onPress={() => Linking.openURL(PRIVACY_URL)}>
-              <Text style={styles.legalLink}>개인정보처리방침</Text>
+              <Text style={styles.legalLink}>{t('pwPrivacy')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

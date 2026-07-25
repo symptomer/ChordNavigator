@@ -5,46 +5,49 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS } from '../data/musicData';
+import { t } from '../i18n';
 
 const { width: SW } = Dimensions.get('window');
 
-const SLIDES = [
+// tip은 화면 예시라 이미 번역된 UI 라벨을 그대로 조립한다 (탭 이름·기법 이름이 실제와 일치해야 함)
+const SLIDES = () => [
   {
     icon: '🎵',
-    title: '키와 장조를 선택해요',
-    desc: '화면 상단에서 키(C, D, E…)와 장조·단조를 고르면\n그에 맞는 다이아토닉 코드 7개가 자동으로 나타나요.',
-    tip: '← 키  ·  C 장조  ·  키 →',
-    tipLabel: '상단 바에서 키 변경',
+    title: t('ob1Title'),
+    desc: t('ob1Desc'),
+    tip: `← ${t('backKey')}  ·  C ${t('major')}  ·  ${t('backKey')} →`,
+    tipLabel: t('ob1TipLabel'),
   },
   {
     icon: '🎸',
-    title: '코드를 탭해서 진행을 쌓아요',
-    desc: '코드 버튼을 누르면 소리가 나고 아래 진행에 쌓여요.\n변형 코드 (maj7, 9, sus4…)도 골라볼 수 있어요.',
+    title: t('ob2Title'),
+    desc: t('ob2Desc'),
     tip: 'Cmaj9  →  Am9  →  Fmaj9  →  G13',
-    tipLabel: '이렇게 진행이 만들어져요',
+    tipLabel: t('ob2TipLabel'),
   },
   {
     icon: '💡',
-    title: '기법을 자동으로 추천해줘요',
-    desc: '코드를 선택하면 클리셰, 페달 포인트 등\n재즈·팝에서 쓰는 기법을 자동으로 제안해요.\n▶ 버튼으로 미리 들어볼 수 있어요.',
-    tip: '클리셰  ·  페달 포인트  ·  트라이톤 대리',
-    tipLabel: '기법 제안 섹션',
+    title: t('ob3Title'),
+    desc: t('ob3Desc'),
+    tip: `${t('techCliche')}  ·  ${t('techPedal')}  ·  ${t('techTritone')}`,
+    tipLabel: t('ob3TipLabel'),
   },
   {
     icon: '🎹',
-    title: '운지와 분석도 확인해요',
-    desc: '기타·피아노 운지 다이어그램을 바로 확인하고,\n분석·스케일 탭에서 어울리는 스케일을 찾아보세요.\n진행은 저장해서 언제든 불러올 수 있어요.',
-    tip: '코드  ·  분석·스케일',
-    tipLabel: '하단 탭 바',
+    title: t('ob4Title'),
+    desc: t('ob4Desc'),
+    tip: `${t('tabChords')}  ·  ${t('tabAnalyze')}`,
+    tipLabel: t('ob4TipLabel'),
   },
 ];
 
 export default function OnboardingScreen({ navigation }) {
   const scrollRef = useRef(null);
   const [page, setPage] = useState(0);
+  const slides = SLIDES();
 
   function goNext() {
-    if (page < SLIDES.length - 1) {
+    if (page < slides.length - 1) {
       scrollRef.current?.scrollTo({ x: SW * (page + 1), animated: true });
       setPage(page + 1);
     } else {
@@ -62,14 +65,13 @@ export default function OnboardingScreen({ navigation }) {
     setPage(p);
   }
 
-  const slide = SLIDES[page];
-  const isLast = page === SLIDES.length - 1;
+  const isLast = page === slides.length - 1;
 
   return (
     <SafeAreaView style={styles.safe}>
       {/* 건너뛰기 */}
       <TouchableOpacity style={styles.skipBtn} onPress={finish}>
-        <Text style={styles.skipTxt}>건너뛰기</Text>
+        <Text style={styles.skipTxt}>{t('obSkip')}</Text>
       </TouchableOpacity>
 
       {/* 슬라이드 */}
@@ -79,7 +81,7 @@ export default function OnboardingScreen({ navigation }) {
         onMomentumScrollEnd={onScroll}
         style={{ flex: 1 }}
       >
-        {SLIDES.map((s, i) => (
+        {slides.map((s, i) => (
           <View key={i} style={styles.slide}>
             <Text style={styles.slideIcon}>{s.icon}</Text>
             <Text style={styles.slideTitle}>{s.title}</Text>
@@ -98,14 +100,14 @@ export default function OnboardingScreen({ navigation }) {
       <View style={styles.bottom}>
         {/* 페이지 도트 */}
         <View style={styles.dots}>
-          {SLIDES.map((_, i) => (
+          {slides.map((_, i) => (
             <View key={i} style={[styles.dot, i === page && styles.dotActive]} />
           ))}
         </View>
 
         <TouchableOpacity style={[styles.nextBtn, isLast && styles.nextBtnLast]} onPress={goNext}>
           <Text style={[styles.nextBtnTxt, isLast && styles.nextBtnTxtLast]}>
-            {isLast ? '시작하기 →' : '다음 →'}
+            {isLast ? t('obStart') : t('obNext')}
           </Text>
         </TouchableOpacity>
       </View>

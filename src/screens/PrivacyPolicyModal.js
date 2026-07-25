@@ -4,32 +4,24 @@ import {
   ScrollView, SafeAreaView, StyleSheet,
 } from 'react-native';
 import { COLORS } from '../data/musicData';
+import { t } from '../i18n';
 
-const SECTIONS = [
-  {
-    title: '수집하는 정보',
-    body: 'ChordNavigator는 개인 식별 정보를 수집하지 않습니다. 기기에 저장되는 코드 진행·설정 데이터는 오직 로컬에만 보관됩니다.',
-  },
-  {
-    title: 'AI 분석 기능',
-    body: 'AI 분석(Claude) 사용 시, 입력한 코드 진행 데이터가 Anthropic API로 전송됩니다. 사용자 개인 정보는 포함되지 않으며, 전송된 데이터는 분석 목적으로만 사용됩니다.',
-  },
-  {
-    title: '인앱 결제',
-    body: '구독·결제는 RevenueCat 및 Apple App Store를 통해 처리됩니다. 결제 정보는 Apple이 관리하며, 앱은 결제 세부 정보에 접근하지 않습니다.',
-  },
-  {
-    title: '제3자 서비스',
-    body: '• Anthropic (Claude AI) — AI 분석\n• RevenueCat — 구독 관리\n• Apple App Store — 결제 처리\n\n각 서비스의 개인정보처리방침을 참고하세요.',
-  },
-  {
-    title: '데이터 보안',
-    body: '앱은 별도의 서버를 운영하지 않으며 사용자 데이터를 수집·저장·판매하지 않습니다.',
-  },
-  {
-    title: '문의',
-    body: '개인정보처리방침에 관한 문의:\nsymptomers@naver.com',
-  },
+// 제3자 서비스: 실제 구성(Cloudflare Worker → Google Gemini, RevenueCat, Apple)과 일치해야 함.
+// ⚠️ 이 목록을 바꾸면 웹 privacy-policy.html·ASC 개인정보 답변도 같이 고칠 것.
+const THIRD_PARTIES = () => [
+  `• Google (Gemini AI) — ${t('ppAiService')}`,
+  `• Cloudflare (Workers) — ${t('ppAiRelay')}`,
+  `• RevenueCat — ${t('ppSubMgmt')}`,
+  `• Apple App Store — ${t('ppPayProc')}`,
+].join('\n') + `\n\n${t('ppSeeEach')}`;
+
+const SECTIONS = () => [
+  { title: t('pp1Title'), body: t('pp1Body') },
+  { title: t('pp2Title'), body: t('pp2Body') },
+  { title: t('pp3Title'), body: t('pp3Body') },
+  { title: t('pp4Title'), body: THIRD_PARTIES() },
+  { title: t('pp5Title'), body: t('pp5Body') },
+  { title: t('pp6Title'), body: t('pp6Body') },
 ];
 
 export default function PrivacyPolicyModal({ visible, onClose }) {
@@ -37,16 +29,16 @@ export default function PrivacyPolicyModal({ visible, onClose }) {
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <SafeAreaView style={s.safe}>
         <View style={s.header}>
-          <Text style={s.title}>개인정보처리방침</Text>
+          <Text style={s.title}>{t('pwPrivacy')}</Text>
           <TouchableOpacity style={s.closeBtn} onPress={onClose}>
             <Text style={s.closeTxt}>✕</Text>
           </TouchableOpacity>
         </View>
 
         <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-          <Text style={s.updated}>최종 업데이트: 2026년 5월 24일</Text>
+          <Text style={s.updated}>{t('ppUpdated')}</Text>
 
-          {SECTIONS.map((sec, i) => (
+          {SECTIONS().map((sec, i) => (
             <View key={i} style={s.section}>
               <Text style={s.sectionTitle}>{sec.title}</Text>
               <Text style={s.sectionBody}>{sec.body}</Text>
