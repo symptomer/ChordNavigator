@@ -7,10 +7,11 @@ import { COLORS, NOTES } from '../data/musicData';
 import ChordsTab  from '../tabs/ChordsTab';
 import AnalyzeTab from '../tabs/AnalyzeTab';
 import ScaleTab   from '../tabs/ScaleTab';
+import { t } from '../i18n';
 
 const TABS = [
-  { key: 'chords',  icon: '♪', label: '코드' },
-  { key: 'analyze', icon: '✦', label: '분석·스케일' },
+  { key: 'chords',  icon: '♪', labelKey: 'tabChords' },
+  { key: 'analyze', icon: '✦', labelKey: 'tabAnalyze' },
 ];
 
 export default function NavigatorScreen({ navigation }) {
@@ -42,14 +43,14 @@ export default function NavigatorScreen({ navigation }) {
                 style={[styles.subTabBtn, analyzeSubTab === 'analyze' && styles.subTabBtnSel]}
                 onPress={() => setAnalyzeSubTab('analyze')}>
                 <Text style={[styles.subTabText, analyzeSubTab === 'analyze' && styles.subTabTextSel]}>
-                  ✦ 분석
+                  ✦ {t('analyzeShort')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.subTabBtn, analyzeSubTab === 'scale' && styles.subTabBtnSel]}
                 onPress={() => setAnalyzeSubTab('scale')}>
                 <Text style={[styles.subTabText, analyzeSubTab === 'scale' && styles.subTabTextSel]}>
-                  ≋ 스케일
+                  ≋ {t('scalesShort')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -66,10 +67,10 @@ export default function NavigatorScreen({ navigation }) {
       {/* Top bar */}
       <View style={styles.topBar}>
         <TouchableOpacity onPress={goHome} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>← 키</Text>
+          <Text style={styles.backBtnText}>← {t('backKey')}</Text>
         </TouchableOpacity>
         <Text style={styles.keyBadge}>
-          {activeKey} {selMode === 'major' ? '장조' : '단조'}{transKey ? ' ▸' : ''}
+          {activeKey} {selMode === 'major' ? t('major') : t('minor')}{transKey ? ' ▸' : ''}
         </Text>
       </View>
 
@@ -78,12 +79,12 @@ export default function NavigatorScreen({ navigation }) {
 
       {/* Tab bar */}
       <View style={styles.tabBar}>
-        {TABS.map(t => (
+        {TABS.map(tab => (
           <TouchableOpacity
-            key={t.key}
+            key={tab.key}
             style={styles.tabItem}
-            onPress={() => setCurTab(t.key)}>
-            <Text style={[styles.tabLabel, curTab === t.key && styles.tabActive]}>{t.label}</Text>
+            onPress={() => setCurTab(tab.key)}>
+            <Text style={[styles.tabLabel, curTab === tab.key && styles.tabActive]}>{t(tab.labelKey)}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -92,7 +93,7 @@ export default function NavigatorScreen({ navigation }) {
       <Modal visible={transposeVis} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>전조할 키 선택</Text>
+            <Text style={styles.modalTitle}>{t('transposeModalTitle')}</Text>
             <View style={styles.keyGrid}>
               {NOTES.map(k => (
                 <TouchableOpacity
@@ -104,7 +105,7 @@ export default function NavigatorScreen({ navigation }) {
               ))}
             </View>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setTransposeVis(false)}>
-              <Text style={styles.cancelBtnText}>취소</Text>
+              <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -8,6 +8,7 @@ import { usePurchase } from '../context/PurchaseContext';
 import { COLORS, GENRE_PROGS } from '../data/musicData';
 import { getChords } from '../utils/musicUtils';
 import Purchases from '../utils/purchases';
+import { t } from '../i18n';
 
 // AI 분석 백엔드 (Cloudflare Worker) — API 키는 서버에만, 앱엔 없음
 const WORKER_URL = 'https://chordnavigator-ai.symptomer.workers.dev';
@@ -32,7 +33,7 @@ export default function AnalyzeTab() {
 
   async function runAI() {
     if (!isPremium) { showPaywall(); return; }
-    if (!progInput.trim()) { Alert.alert('코드를 입력하세요'); return; }
+    if (!progInput.trim()) { Alert.alert(t('alertEnterChords')); return; }
     setLoading(true); setResults(null);
 
     const levelMap = { beginner: '입문', mid: '중급', jazz: '재즈' };
@@ -54,18 +55,18 @@ export default function AnalyzeTab() {
       const data = await res.json();
       if (data.error === 'not_premium') { showPaywall(); return; }
       if (data.error === 'rate_limited') {
-        Alert.alert('오늘 AI 분석 사용량을 다 썼어요', '내일 다시 시도하거나 규칙 기반 분석을 사용하세요');
+        Alert.alert(t('aiQuotaTitle'), t('aiQuotaBody'));
         return;
       }
       if (data.error) throw new Error(data.message || data.error);
       setResults({ type: 'ai', original: progInput, json: data });
     } catch (e) {
-      Alert.alert('AI 분석 실패', e.message + '\n\n규칙 기반 분석을 사용해보세요');
+      Alert.alert(t('aiFailTitle'), e.message + '\n\n' + t('aiFailBody'));
     } finally { setLoading(false); }
   }
 
   function runLocal() {
-    if (!progInput.trim()) { Alert.alert('코드를 입력하세요'); return; }
+    if (!progInput.trim()) { Alert.alert(t('alertEnterChords')); return; }
     const chords   = progInput.trim().split(/[\s,]+/).filter(Boolean);
     const diatonic = getChords(activeKey, selMode);
 
@@ -97,10 +98,10 @@ export default function AnalyzeTab() {
     setResults({
       type: 'local',
       items: [
-        { label: '원본 진행',         chords, desc: `${chords.length}개 코드 진행`, color: COLORS.text2 },
-        { label: '중급 버전 (7th)',   chords: with7, desc: 'maj7, m7로 색감 풍부하게', color: COLORS.purple },
-        { label: '대리코드 버전',     chords: subChords, desc: '동일 기능 대리코드로 교체', color: COLORS.accent },
-        { label: '재즈 (트리톤 대리)',chords: tritone, desc: 'dom7을 반음 위 코드로 교체', color: COLORS.accent2 },
+        { label: t('localOriginal'), chords, desc: t('localOriginalDesc', { n: chords.length }), color: COLORS.text2 },
+        { label: t('localMid7'),     chords: with7, desc: t('localMid7Desc'), color: COLORS.purple },
+        { label: t('resSubVersion'), chords: subChords, desc: t('localSubDesc'), color: COLORS.accent },
+        { label: t('localJazzTri'),  chords: tritone, desc: t('localJazzTriDesc'), color: COLORS.accent2 },
       ],
     });
   }
@@ -123,19 +124,19 @@ export default function AnalyzeTab() {
   return (
     <ScrollView style={styles.wrap} contentContainerStyle={{ paddingBottom: 20 }}>
       {/* Prog input */}
-      <Text style={styles.label}>코드 진행 입력</Text>
+      <Text style={styles.label}>{t('progInputLabel')}</Text>
       <TextInput
         style={styles.progInput}
         value={progInput}
         onChangeText={setProgInput}
-        placeholder="예: C Am F G"
+        placeholder={t('progInputPlaceholder')}
         placeholderTextColor={COLORS.text2}
         multiline
         autoCapitalize="none"
       />
 
       {/* Genre */}
-      <Text style={styles.label}>장르</Text>
+      <Text style={styles.label}>{t('genreLabel')}</Text>
       <View style={styles.genreGrid}>
         {Object.entries(GENRE_PROGS).map(([k, v]) => (
           <TouchableOpacity
@@ -148,9 +149,9 @@ export default function AnalyzeTab() {
       </View>
 
       {/* Level */}
-      <Text style={styles.label}>레벨</Text>
+      <Text style={styles.label}>{t('level')}</Text>
       <View style={styles.levelRow}>
-        {[['beginner','입문'],['mid','중급'],['jazz','재즈 🔒']].map(([k, label]) => (
+        {[['beginner',t('levelBeginner')],['mid',t('levelMid')],['jazz',`${t('levelJazz')} 🔒`]].map(([k, label]) => (
           <TouchableOpacity
             key={k}
             style={[styles.lvbtn, selLevel === k && styles.lvbtnSel]}
@@ -165,10 +166,10 @@ export default function AnalyzeTab() {
 
       {/* Buttons */}
       <TouchableOpacity style={[styles.fullBtn, { backgroundColor: COLORS.purple }]} onPress={runAI}>
-        <Text style={styles.fullBtnText}>{isPremium ? '✦ AI 분석' : '🔒 AI 분석 (프리미엄)'}</Text>
+        <Text style={styles.fullBtnText}>{isPremium ? t('aiAnalyze') : t('aiAnalyzeLocked')}</Text>
       </TouchableOpacity>
       <TouchableOpacity style={[styles.fullBtn, { backgroundColor: COLORS.bg3 }]} onPress={runLocal}>
-        <Text style={styles.fullBtnText}>⚙ 규칙 기반 분석 (API 없이)</Text>
+        <Text style={styles.fullBtnText}>{t('ruleAnalyze')}</Text>
       </TouchableOpacity>
 
       {loading && <ActivityIndicator color={COLORS.accent} style={{ marginTop: 16 }} />}
@@ -177,14 +178,14 @@ export default function AnalyzeTab() {
       {results?.type === 'ai' && (
         <>
           <ResultCard
-            title="원본 분석" color={COLORS.text2}
+            title={t('resOriginal')} color={COLORS.text2}
             chords={results.original.split(/\s+/)}
             desc={results.json.analysis}
             onPlay={() => playSeq(results.original.split(/\s+/))} />
           {[
-            { key: 'genre_version',     label: `${GENRE_PROGS[selGenre]?.name} 추천`, color: COLORS.pink },
-            { key: 'level_version',     label: selLevel === 'jazz' ? '재즈 리하모니제이션' : selLevel === 'mid' ? '중급 버전' : '입문 버전', color: COLORS.purple },
-            { key: 'substitute_version',label: '대리코드 버전', color: COLORS.accent },
+            { key: 'genre_version',     label: t('resGenreRec', { genre: GENRE_PROGS[selGenre]?.name }), color: COLORS.pink },
+            { key: 'level_version',     label: selLevel === 'jazz' ? t('resJazzReharm') : selLevel === 'mid' ? t('resMidVersion') : t('resBeginnerVersion'), color: COLORS.purple },
+            { key: 'substitute_version',label: t('resSubVersion'), color: COLORS.accent },
           ].map(v => {
             const d = results.json[v.key];
             if (!d) return null;

@@ -5,6 +5,7 @@ import { COLORS, SCALE_MODES, NOTES, MAJ_IV, MIN_IV, MAJ_Q, MIN_Q } from '../dat
 import { ki } from '../utils/musicUtils';
 import ScaleFretboard from '../components/ScaleFretboard';
 import PianoDiagram   from '../components/PianoDiagram';
+import { t } from '../i18n';
 
 // 진행의 음표들을 분석해 가장 잘 맞는 스케일 추천
 function recommendScales(progression, notes) {
@@ -92,9 +93,9 @@ export default function ScaleTab() {
       {/* ── 내 진행 분석 → 스케일 추천 ── */}
       {progression.length >= 2 && (
         <View style={styles.recSection}>
-          <Text style={styles.recTitle}>내 진행에 맞는 스케일</Text>
+          <Text style={styles.recTitle}>{t('scaleForMyProg')}</Text>
           {recommendations.length === 0 ? (
-            <Text style={styles.recEmpty}>매칭 스케일 없음</Text>
+            <Text style={styles.recEmpty}>{t('noMatchScale')}</Text>
           ) : (
             <View style={styles.recList}>
               {recommendations.map((r, i) => (
@@ -112,7 +113,7 @@ export default function ScaleTab() {
       )}
 
       {/* ── 스케일 선택 ── */}
-      <Text style={styles.label}>스케일 모드</Text>
+      <Text style={styles.label}>{t('scaleMode')}</Text>
       <View style={styles.grid}>
         {SCALE_MODES.map((sc, i) => (
           <TouchableOpacity
@@ -128,7 +129,7 @@ export default function ScaleTab() {
       {selScale !== null && (
         <>
           {/* 구성음 */}
-          <Text style={styles.label}>구성음 — {activeKey} {SCALE_MODES[selScale].label}</Text>
+          <Text style={styles.label}>{t('chordTones')} — {activeKey} {SCALE_MODES[selScale].label}</Text>
           <View style={styles.notesRow}>
             {scaleNotes.map((n, i) => (
               <View key={i} style={[styles.noteChip, i === 0 && styles.noteChipRoot]}>
@@ -145,7 +146,7 @@ export default function ScaleTab() {
                 style={[styles.instrBtn, scaleInstr === instr && styles.instrBtnSel]}
                 onPress={() => setScaleInstr(instr)}>
                 <Text style={[styles.instrBtnText, scaleInstr === instr && styles.instrBtnTextSel]}>
-                  {instr === 'guitar' ? '기타 지판' : '피아노 건반'}
+                  {instr === 'guitar' ? t('guitarFretboard') : t('pianoKeys')}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -163,7 +164,7 @@ export default function ScaleTab() {
           {diatonicChords.length > 0 && (
             <>
               <Text style={[styles.label, { marginTop: 14 }]}>
-                이 스케일의 코드 — 탭하면 소리 재생
+                {t('scaleChordsHint')}
               </Text>
               <View style={styles.diaRow}>
                 {diatonicChords.map((c, i) => (
@@ -174,7 +175,7 @@ export default function ScaleTab() {
                 ))}
               </View>
               <TouchableOpacity style={styles.allAddBtn} onPress={addAllDiatonicChords}>
-                <Text style={styles.allAddBtnText}>전체 진행 추가</Text>
+                <Text style={styles.allAddBtnText}>{t('addAllToProg')}</Text>
               </TouchableOpacity>
             </>
           )}
