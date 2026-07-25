@@ -1,13 +1,55 @@
 # ChordNavigator — 다음 세션 작업 계획
 
 **프로젝트 경로:** `/Users/symptomer/Documents/ChordNavigator`
-**최근 작업:** 2026-06-08 (9차) — ✅✅✅ **1.0.1 (빌드 14) 심사 통과 = App Store 출시 완료!** + 하네스 검증
+**최근 작업:** 2026-07-25 (11차) — **1.0.2 출시 완료** + **다국어(1.0.3) 작업 착수** (i18n 틀+홈 완료, 나머지 진행 중)
 **현재 브랜치:** main · **GitHub:** https://github.com/symptomer/ChordNavigator
 **ascAppId** `6772862881` · 로그인 appstoreconnect.apple.com (KANG DOSEONG / symptomers@naver.com)
 
-> ⚠️ 이 문서는 한 번 `06cc4be` 커밋 상태로 되돌려진 적 있음(2026-06-08). 아래 상단 블록이 최신 진실. 하단 옛 섹션(내일 할 일=제출 등)은 이미 완료된 이력이니 무시.
+---
 
-## ✅ 현재 상태: 1.0.1 출시됨 (2026-06-08 심사 통과)
+# 🌍 START HERE — 다국어(i18n) 작업 = 1.0.3 (진행 중)
+
+**목표:** 코드네비게이터를 **10개 언어**로 (메트로눈처럼 기기 언어 자동 감지). 언어: **ko en ja zh es fr de pt ru it**.
+**왜 1.0.3:** 1.0.2가 **이미 출시(승인)됨** → 새 빌드는 반드시 **app.json version 1.0.2→1.0.3**으로 올려야 함(안 올리면 ITMS-90186/90062 거부).
+
+### ✅ 이미 된 것 (커밋 `9d68f19`)
+- `expo-localization` 설치 + `app.json` plugins에 추가.
+- **`src/i18n/index.js`** — `t(key, params)` 조회(키기준·영어폴백), `LANG`(기기언어 자동감지, 미지원→en), `LANG_NAME`(AI Worker에 넘길 영문 언어명), `SUPPORTED` 10개.
+- **`src/i18n/strings.js`** — 번역 테이블. **키 기준 구조** `{ key: { ko, en, ja, zh, es, fr, de, pt, ru, it } }`. 현재 핵심 UI(탭·홈·공통컨트롤·키/모드/레벨·프리미엄)만 채워짐.
+- **`HomeScreen.js`** 전체 t() 연결 완료(검증 통과).
+
+### 🔧 작업 패턴 (화면마다 반복)
+1. 파일 맨 위 `import { t } from '../i18n';` (tabs/는 `'../i18n'`, screens/도 `'../i18n'` — 상대경로 주의).
+2. 한글 UI 문자열 → `strings.js`에 키 추가(**10개 언어 다**) → `{t('키')}` 로 교체.
+3. `node -e "..@babel/parser.."` 로 문법 검증(아래 검증법). 로직용 한글(비교키)은 그대로 두고 **표시 문자열만** 교체.
+
+### ⏭️ 남은 것 (이 순서, 규모순)
+1. **ChordsTab.js** (268줄 한글, 제일 큼 — 재생/BPM/마디/장·단/기법제안/GPS추천/다이아토닉/Alert들)
+2. **분석 AnalyzeTab.js** + **ScaleTab.js** + **InstrumentTab/ProgressionTab/SavedTab**
+3. **PaywallScreen.js**(기능 비교표) + **ManualModal.js**(96줄, 긴 도움말 프로즈 — 번역량 큼) + **OnboardingScreen/PrivacyPolicyModal/NavigatorScreen**
+4. **탭바 라벨**(하단 '코드'·'분석·스케일') — 네비게이션 정의부(App.js 또는 상위) 찾아서 `t('tabChords')`/`t('tabAnalyze')`
+5. **데이터**: `musicData.js`(699줄 — 장르명 GENRE_PROGS, 기법명/설명, COLORS는 아님) + `musicUtils.js` + `songPatterns.js` — 표시용 한글만.
+6. **AI 응답 언어 분기**: `server/src/index.ts` 프롬프트에 언어 지시 추가(+앱에서 `lang`/`LANG_NAME` 전달). AnalyzeTab `runAI`·ChordsTab `fetchGPSRoutes` body에 lang 넣기 → Worker 프롬프트가 "Respond in {language}". **Worker 재배포 필요**(`cd server && npx wrangler deploy`).
+7. **App Store 메타데이터 10개 언어**(ASC 웹): 이름·부제·설명·키워드·(스크린샷은 공용). 배포→버전1.0.3→우측 언어 드롭다운에서 언어 추가.
+8. **빌드**: app.json version **1.0.3**로 올림 → `eas build -p ios --profile production` → `eas submit`(자동재시도) → ASC 버전1.0.3 생성·빌드연결·변경사항·제출.
+
+### ⚠️ 이 프로젝트 함정 (11차까지 교훈)
+- **버전번호**: 출시된 버전으로 새빌드 못 올림 → 항상 app.json version 올릴 것.
+- **ASC 메타 입력칸**: 특수문자(♭·•·가운뎃점 ·) 거부 → 일반문자만.
+- **Gemini 모델 폐기 잦음**: 현재 `gemini-3.1-flash-lite`(server/wrangler.toml). 404나면 aistudio.google.com 모델목록서 최신 확인. Google Cloud 유료등급 결제됨(colorguitar8585@gmail.com / 프로젝트 gen-lang-client-0589121441).
+- **Apple ASC API 500 UNEXPECTED_ERROR**=일시장애→재시도(15~20분 간격 루프).
+- **eas submit 로그 버퍼링**: `... | tail`로 파이프하면 끝날때까지 출력 안 보임 → `> log 2>&1` 리다이렉트로 읽을 것.
+- **카드/결제 입력은 클로드 금지** → 페이지만 안내.
+- **문서 리버트 주의**: 이 폴더에 다른 세션 dev server가 떠 있어 NEXT_SESSION.md가 커밋상태로 되돌려진 적 있음 → 문서 수정하면 **바로 커밋**.
+
+### 🧪 검증/실행 메모
+- 문법검증: `node -e "const {parse}=require('./node_modules/@babel/parser'); const fs=require('fs'); parse(fs.readFileSync('경로','utf8'),{sourceType:'module',plugins:['jsx']})"`
+- Expo Go 실행: `EXPO_NO_TYPESCRIPT_SETUP=1 npx expo start` (server/ .ts 때문). 다국어 테스트=기기 언어 바꿔서.
+- AI/프리미엄은 Expo Go에서 안 됨 → TestFlight 필요. 프리미엄 테스트=페이월 샌드박스 구매(무료).
+
+---
+
+## ✅ 현재 상태: 1.0.2 출시됨 (2026-07-25 심사 통과) / 1.0.1도 라이브
 - 1.0.1 = 보이스리딩·소리/운지 정합성·음색 + AI백엔드(Worker+Gemini, **사용자 API키 입력 제거**) + AnalyzeTab 진행 자동채움 + 홈 상시 프리미엄 버튼 + ASO 키워드 강화. **정상 동작 확인.**
 - 빌드 이력: #13(`008f07d4`) 만들었다 UX개선 추가로 #14(`ac796f8f`) 재빌드→제출. 커밋 `06cc4be`까지 푸시.
 - "구독/잠금 안보임"=개발자 본인 프리미엄(정상)·친구=StoreKit캐시(삭제재설치로 해결). "API키 물어봄"=라이브 #12가 AI백엔드 전환 前 옛빌드라 그런 것→#14에서 해소.
