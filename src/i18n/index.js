@@ -2,6 +2,10 @@
 // 지원 언어: 한국어·영어·일본어·중국어·스페인어·프랑스어·독일어·포르투갈어·러시아어·이탈리아어
 import { getLocales } from 'expo-localization';
 import { STRINGS } from './strings';
+import { MANUAL_STRINGS } from './strings_manual';
+
+// UI 문자열 + 사용설명서 문자열을 한 테이블로 (키 이름이 겹치면 안 됨 — 설명서는 m 접두사)
+const TABLE = { ...STRINGS, ...MANUAL_STRINGS };
 
 export const SUPPORTED = ['ko', 'en', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'it'];
 
@@ -24,7 +28,7 @@ export const LANG = detectLang();
  * t('play')  또는  t('addN', { n: 3 })  (문자열 안 {n} 치환)
  */
 export function t(key, params) {
-  const entry = STRINGS[key];
+  const entry = TABLE[key];
   let s = entry
     ? (entry[LANG] != null ? entry[LANG] : entry.en != null ? entry.en : key)
     : key;

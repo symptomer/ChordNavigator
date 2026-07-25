@@ -5,217 +5,130 @@ import {
 } from 'react-native';
 import { COLORS } from '../data/musicData';
 import PrivacyPolicyModal from './PrivacyPolicyModal';
+import { t } from '../i18n';
+import { usePurchase } from '../context/PurchaseContext';
 
 const { width: SW } = Dimensions.get('window');
 
 // ─── 섹션 데이터 ─────────────────────────────────────────
-const SECTIONS = [
+// 가격은 하드코딩하지 않는다 — 스토어에서 받은 현지 통화 가격(usePurchase)을 넣는다.
+const SECTIONS = ({ monthlyPrice, lifetimePrice }) => [
   {
     icon: '♩',
-    title: '시작 전에',
+    title: t('mTitle1'),
     color: COLORS.accent,
     items: [
-      {
-        type: 'intro',
-        text: 'ChordNavigator는 코드 진행을 탐색하고, 소리를 들어보고, 운지를 확인하고, AI로 분석까지 할 수 있는 도구예요.',
-      },
+      { type: 'intro', text: t('mIntro') },
       {
         type: 'step',
         steps: [
-          { num: '1', label: '키 선택', desc: '홈에서 연주할 키(C, G, Am…)와 장/단조 선택' },
-          { num: '2', label: '탐색 시작', desc: '▶ 버튼으로 Navigator 진입' },
-          { num: '3', label: '코드 탭', desc: '코드 카드를 탭 → 소리 재생 + 진행에 추가' },
-          { num: '4', label: '진행 저장', desc: '☆ 버튼으로 이름 붙여 저장, 언제든 불러오기' },
-          { num: '5', label: '분석·스케일', desc: '하단 탭으로 이동해 AI 분석 또는 스케일 탐색' },
+          { num: '1', label: t('mStep1Label'), desc: t('mStep1Desc') },
+          { num: '2', label: t('mStep2Label'), desc: t('mStep2Desc') },
+          { num: '3', label: t('mStep3Label'), desc: t('mStep3Desc') },
+          { num: '4', label: t('mStep4Label'), desc: t('mStep4Desc') },
+          { num: '5', label: t('mStep5Label'), desc: t('mStep5Desc') },
         ],
       },
     ],
   },
   {
     icon: '♪',
-    title: '코드 탭',
+    title: t('mTitle2'),
     color: COLORS.purple,
     items: [
-      {
-        type: 'section', label: '코드 카드 한 번 탭',
-        desc: '소리 재생 + 하단 진행 바에 추가. 길게 누르면 삭제.',
-      },
-      {
-        type: 'section', label: '변형 버튼 (maj7, sus4…)',
-        desc: '선택된 코드 아래에 표시. 탭하면 해당 변형음으로 교체.',
-      },
-      {
-        type: 'section', label: '▶ 재생 버튼',
-        desc: '진행 바의 코드를 1.5초 간격으로 순서대로 재생.',
-      },
-      {
-        type: 'section', label: 'GPS 추천',
-        desc: '현재 진행 맥락을 분석해 다음 코드를 자동 추천. AI(프리미엄) 또는 규칙 기반으로 작동.',
-      },
-      {
-        type: 'section', label: '마디 ([ ])',
-        desc: '진행을 마디 단위로 구분. 편집 시 원하는 마디를 탭해 활성화 후 코드 추가.',
-      },
-      {
-        type: 'tip',
-        text: '코드 카드 위의 ♩ 아이콘을 탭하면 기타·피아노 운지 다이어그램을 볼 수 있어요.',
-      },
+      { type: 'section', label: t('m2s1Label'), desc: t('m2s1Desc') },
+      { type: 'section', label: t('m2s2Label'), desc: t('m2s2Desc') },
+      { type: 'section', label: t('m2s3Label'), desc: t('m2s3Desc') },
+      { type: 'section', label: t('m2s4Label'), desc: t('m2s4Desc') },
+      { type: 'section', label: t('m2s5Label'), desc: t('m2s5Desc') },
+      { type: 'tip', text: t('m2Tip') },
     ],
   },
   {
     icon: '⊞',
-    title: '운지 다이어그램',
+    title: t('mTitle3'),
     color: COLORS.blue,
     items: [
-      {
-        type: 'section', label: '기타 다이어그램',
-        desc: '프렛 번호 + 손가락 위치를 점으로 표시. X는 뮤트, O는 개방현.',
-      },
-      {
-        type: 'section', label: '피아노 다이어그램',
-        desc: '구성음을 건반 위에 하이라이트. 루트 음은 강조 색으로 표시.',
-      },
-      {
-        type: 'section', label: '기타 지판 (스케일 탭)',
-        desc: '선택한 스케일의 모든 음 위치를 전체 지판에 시각화.',
-      },
-      {
-        type: 'tip',
-        text: '운지 데이터 없음이 뜨면 해당 코드 변형이 아직 등록되지 않은 거예요. 기본 코드(maj/min)는 항상 표시됩니다.',
-      },
+      { type: 'section', label: t('m3s1Label'), desc: t('m3s1Desc') },
+      { type: 'section', label: t('m3s2Label'), desc: t('m3s2Desc') },
+      { type: 'section', label: t('m3s3Label'), desc: t('m3s3Desc') },
+      { type: 'tip', text: t('m3Tip') },
     ],
   },
   {
     icon: '⟳',
-    title: '전조 & 저장',
+    title: t('mTitle4'),
     color: COLORS.green,
     items: [
-      {
-        type: 'section', label: '전조 (Transpose)',
-        desc: '코드 탭 상단 ↑↓ 버튼으로 반음 단위 전조. 모든 코드가 동시에 이동.',
-      },
-      {
-        type: 'section', label: '전조 해제',
-        desc: '원래 키로 돌아가려면 가운데 키 이름을 탭.',
-      },
-      {
-        type: 'section', label: '진행 저장 (☆)',
-        desc: '이름을 입력해 저장. 곡 이름이나 장르를 써두면 편리해요.',
-      },
-      {
-        type: 'section', label: '불러오기',
-        desc: '저장 목록에서 탭 → 해당 진행이 즉시 복원. 길게 누르면 삭제.',
-      },
-      {
-        type: 'tip',
-        text: '저장·마디 개수 모두 무제한 무료!',
-      },
+      { type: 'section', label: t('m4s1Label'), desc: t('m4s1Desc') },
+      { type: 'section', label: t('m4s2Label'), desc: t('m4s2Desc') },
+      { type: 'section', label: t('m4s3Label'), desc: t('m4s3Desc') },
+      { type: 'section', label: t('m4s4Label'), desc: t('m4s4Desc') },
+      { type: 'tip', text: t('m4Tip') },
     ],
   },
   {
     icon: '⬡',
-    title: '스케일 탭',
+    title: t('mTitle5'),
     color: COLORS.purple,
     items: [
-      {
-        type: 'section', label: '스케일 추천',
-        desc: '진행 바에 코드가 2개 이상 있으면 자동으로 잘 맞는 스케일 추천. 탭하면 바로 적용.',
-      },
-      {
-        type: 'section', label: '스케일 모드 선택',
-        desc: 'Ionian(장조), Dorian, Phrygian 등 7가지 모드 + Pentatonic, Blues 지원.',
-      },
-      {
-        type: 'section', label: '구성음 & 다이어그램',
-        desc: '선택 후 기타 지판/피아노 건반으로 스케일 시각화.',
-      },
-      {
-        type: 'section', label: '다이아토닉 코드',
-        desc: '이 스케일에서 나오는 코드 7개 표시. 탭하면 소리 재생, [전체 진행 추가]로 한번에 추가.',
-      },
-      {
-        type: 'tip',
-        text: '추천 스케일을 탭하면 키가 자동으로 바뀌어요. 진행이 Am이면 A Aeolian이 높은 점수로 뜰 거예요.',
-      },
+      { type: 'section', label: t('m5s1Label'), desc: t('m5s1Desc') },
+      { type: 'section', label: t('m5s2Label'), desc: t('m5s2Desc') },
+      { type: 'section', label: t('m5s3Label'), desc: t('m5s3Desc') },
+      { type: 'section', label: t('m5s4Label'), desc: t('m5s4Desc') },
+      { type: 'tip', text: t('m5Tip') },
     ],
   },
   {
     icon: '✦',
-    title: '분석 탭 (AI)',
+    title: t('mTitle6'),
     color: COLORS.accent2,
     items: [
-      {
-        type: 'section', label: '규칙 기반 분석 (무료)',
-        desc: '원본 → 중급(7th) → 대리코드 → 트리톤 대리 4가지 버전을 자동 생성. API 불필요.',
-      },
-      {
-        type: 'section', label: 'AI 분석 (프리미엄)',
-        desc: '장르·레벨에 맞는 코드 추천 + 상세 해설을 AI가 생성. 프리미엄이면 별도 설정 없이 바로 사용해요.',
-      },
-      {
-        type: 'section', label: '사용 방법',
-        desc: '분석 탭에서 코드 진행(예: C Am F G)을 입력하고 ✦ AI 분석을 누르면 끝. API 키 같은 건 입력할 필요 없어요.',
-      },
-      {
-        type: 'section', label: '▶ 버튼',
-        desc: '분석 결과 카드의 재생 버튼으로 해당 코드 진행을 미리 들어볼 수 있어요.',
-      },
-      {
-        type: 'tip',
-        text: 'AI 분석은 프리미엄 기능이에요. 규칙 기반 분석은 누구나 무료로 사용 가능!',
-      },
+      { type: 'section', label: t('m6s1Label'), desc: t('m6s1Desc') },
+      { type: 'section', label: t('m6s2Label'), desc: t('m6s2Desc') },
+      { type: 'section', label: t('m6s3Label'), desc: t('m6s3Desc') },
+      { type: 'section', label: t('m6s4Label'), desc: t('m6s4Desc') },
+      { type: 'tip', text: t('m6Tip') },
     ],
   },
   {
     icon: '◈',
-    title: '실전 활용',
+    title: t('mTitle7'),
     color: COLORS.pink,
     items: [
-      {
-        type: 'scenario',
-        label: '팝 발라드 만들기',
-        steps: ['키 C 장조 선택 → 탐색 시작', 'I(C) → VI(Am) → IV(F) → V(G) 탭', 'GPS로 다음 코드 추천 받기', '분석 탭 → 중급 버전으로 7th 추가'],
-      },
-      {
-        type: 'scenario',
-        label: '커버곡 코드 분석',
-        steps: ['분석 탭 → 코드 직접 입력 (예: Am F C G)', '규칙 기반 분석 실행', '대리코드 버전으로 편곡 아이디어 얻기', '마음에 드는 버전 ▶로 미리 듣기'],
-      },
-      {
-        type: 'scenario',
-        label: '스케일로 즉흥 연주',
-        steps: ['키 A 단조 → 탐색 시작', '코드 탭에서 Am - Dm - E7 추가', '스케일 탭 → A Aeolian 추천 확인', '기타 지판에서 포지션 확인 후 연주'],
-      },
+      { type: 'scenario', label: t('m7aLabel'), steps: [t('m7a1'), t('m7a2'), t('m7a3'), t('m7a4')] },
+      { type: 'scenario', label: t('m7bLabel'), steps: [t('m7b1'), t('m7b2'), t('m7b3'), t('m7b4')] },
+      { type: 'scenario', label: t('m7cLabel'), steps: [t('m7c1'), t('m7c2'), t('m7c3'), t('m7c4')] },
     ],
   },
   {
     icon: '✦',
-    title: '프리미엄',
+    title: t('mTitle8'),
     color: COLORS.accent,
     items: [
       {
         type: 'compare',
         free: [
-          '키 / 장단조 / 레벨 선택',
-          '다이아토닉 코드 (입문·중급)',
-          '코드 소리 재생',
-          '기타·피아노 운지',
-          '규칙 기반 GPS·분석',
-          '진행·마디 무제한 저장',
+          t('pwKeyMode'),
+          t('pwDiatonic7'),
+          t('pwChordSound'),
+          t('pwFingering'),
+          t('pwRuleGps'),
+          t('pwSaveUnlimited'),
         ],
         premium: [
-          '재즈 레벨 코드 (텐션·대리)',
-          'AI GPS 코드 추천',
-          'AI 진행 분석·추천',
-          '직접 코드 입력 AI 분석',
-          'MIDI 내보내기',
+          t('pwJazzLevel'),
+          t('pwAiGps'),
+          t('pwAiAnalysis'),
+          t('pwCustomAi'),
+          t('pwMidi'),
         ],
       },
       {
         type: 'price',
         items: [
-          { label: '월간', price: '₩1,900', note: '/ 월' },
-          { label: '평생 ✦', price: '₩8,800', note: '1회 결제', best: true },
+          { label: t('pwMonthly'), price: monthlyPrice, note: t('mPerMonth') },
+          { label: `${t('pwLifetime')} ✦`, price: lifetimePrice, note: t('pwOnce'), best: true },
         ],
       },
     ],
@@ -281,13 +194,13 @@ function renderItem(item, idx, sectionColor) {
     return (
       <View key={idx} style={ci.compareRow}>
         <View style={ci.compareCol}>
-          <Text style={ci.compareTitle}>무료</Text>
+          <Text style={ci.compareTitle}>{t('pwFreeCol')}</Text>
           {item.free.map((f, i) => (
             <Text key={i} style={ci.compareItem}>· {f}</Text>
           ))}
         </View>
         <View style={[ci.compareCol, ci.premiumCol]}>
-          <Text style={[ci.compareTitle, { color: COLORS.accent }]}>프리미엄 ✦</Text>
+          <Text style={[ci.compareTitle, { color: COLORS.accent }]}>{t('premiumWord')} ✦</Text>
           {item.premium.map((f, i) => (
             <Text key={i} style={[ci.compareItem, { color: COLORS.text }]}>✓ {f}</Text>
           ))}
@@ -300,7 +213,7 @@ function renderItem(item, idx, sectionColor) {
       <View key={idx} style={ci.priceRow}>
         {item.items.map((p, i) => (
           <View key={i} style={[ci.priceCard, p.best && ci.priceCardBest]}>
-            {p.best && <Text style={ci.bestBadge}>베스트</Text>}
+            {p.best && <Text style={ci.bestBadge}>{t('pwBest')}</Text>}
             <Text style={[ci.priceLabel, p.best && { color: COLORS.bg }]}>{p.label}</Text>
             <Text style={[ci.priceAmount, p.best && { color: COLORS.bg }]}>{p.price}</Text>
             <Text style={[ci.priceNote, p.best && { color: COLORS.bg, opacity: 0.7 }]}>{p.note}</Text>
@@ -317,8 +230,10 @@ export default function ManualModal({ visible, onClose }) {
   const [page, setPage] = useState(0);
   const [privacyVisible, setPrivacyVisible] = useState(false);
   const scrollRef = useRef(null);
-  const total = SECTIONS.length;
-  const sec = SECTIONS[page];
+  const { monthlyPrice, lifetimePrice } = usePurchase();
+  const sections = SECTIONS({ monthlyPrice, lifetimePrice });
+  const total = sections.length;
+  const sec = sections[page];
 
   function goTo(p) {
     setPage(p);
@@ -336,7 +251,7 @@ export default function ManualModal({ visible, onClose }) {
             <Text style={[s.headerIconText, { color: sec.color }]}>{sec.icon}</Text>
           </View>
           <View style={s.headerTitles}>
-            <Text style={s.headerMeta}>사용설명서 {page + 1} / {total}</Text>
+            <Text style={s.headerMeta}>{t('mHeaderMeta', { cur: page + 1, total })}</Text>
             <Text style={[s.headerTitle, { color: sec.color }]}>{sec.title}</Text>
           </View>
           <TouchableOpacity style={s.closeBtn} onPress={onClose}>
@@ -357,7 +272,7 @@ export default function ManualModal({ visible, onClose }) {
         {/* Privacy Policy 링크 (마지막 페이지에만) */}
         {page === total - 1 && (
           <TouchableOpacity style={s.privacyLink} onPress={() => setPrivacyVisible(true)}>
-            <Text style={s.privacyLinkTxt}>개인정보처리방침</Text>
+            <Text style={s.privacyLinkTxt}>{t('pwPrivacy')}</Text>
           </TouchableOpacity>
         )}
 
@@ -367,12 +282,12 @@ export default function ManualModal({ visible, onClose }) {
             style={[s.navBtn, page === 0 && s.navBtnDisabled]}
             onPress={() => goTo(page - 1)}
             disabled={page === 0}>
-            <Text style={[s.navBtnText, page === 0 && s.navBtnTextDisabled]}>← 이전</Text>
+            <Text style={[s.navBtnText, page === 0 && s.navBtnTextDisabled]}>{t('mPrev')}</Text>
           </TouchableOpacity>
 
           {/* 페이지 닷 */}
           <View style={s.dots}>
-            {SECTIONS.map((sec2, i) => (
+            {sections.map((sec2, i) => (
               <TouchableOpacity key={i} onPress={() => goTo(i)}>
                 <View style={[
                   s.dot,
@@ -386,7 +301,7 @@ export default function ManualModal({ visible, onClose }) {
             style={[s.navBtn, s.navBtnRight, { borderColor: sec.color }]}
             onPress={page === total - 1 ? onClose : () => goTo(page + 1)}>
             <Text style={[s.navBtnText, { color: sec.color }]}>
-              {page === total - 1 ? '닫기 ✓' : '다음 →'}
+              {page === total - 1 ? t('mClose') : t('mNext')}
             </Text>
           </TouchableOpacity>
         </View>
