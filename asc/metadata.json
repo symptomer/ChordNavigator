@@ -1,0 +1,91 @@
+{
+  "_readme": [
+    "App Store Connect 1.0.3 메타데이터 (10개 언어).",
+    "한국어 원문은 라이브 1.0.2에서 그대로 읽어온 것이고 나머지는 그 번역이다.",
+    "제한: name 30 / subtitle 30 / keywords 100 / promotionalText 170 / description 4000 / whatsNew 4000",
+    "검사: node asc/check-metadata.js   업로드: node asc/push-metadata.js",
+    "⚠️ ASC 입력칸이 일부 특수문자를 거부한 적 있음(변경사항). whatsNew는 '-'만 쓴다."
+  ],
+  "locales": {
+    "ko": {
+      "name": "Chord Navigator",
+      "subtitle": "기타 코드 진행 & 음악 이론",
+      "keywords": "코드,코드진행,기타코드,피아노코드,코드분석,화성학,음악이론,작곡,스케일,운지,코드표,반주,재즈,통기타,건반,화음",
+      "promotionalText": "첫 달 무료! 코드 진행을 입력하면 기타와 피아노 운지, 어울리는 스케일을 바로 보여줍니다. AI가 진행을 분석하고 다음 코드를 추천해줘요.",
+      "description": "코드 네비게이터는 기타 연주자와 작곡가를 위한 코드 분석 앱입니다.\n\n코드 진행을 입력하면 각 코드의 기능과 관계를 분석하고, 기타 다이어그램으로 운지법을 바로 확인할 수 있습니다.\n\n주요 기능\n• 코드 진행 분석 — 조성, 도수, 코드 기능 자동 분석\n• 기타 다이어그램 — 슬래시 코드 포함 정확한 운지법 표시\n• 스케일 뷰 — 스케일과 코드 톤을 프렛보드에서 시각화\n• 피아노 다이어그램 — 피아노 건반으로 코드 구성음 확인\n• MIDI 재생 — 코드 소리를 직접 들으며 확인\n\n음악 이론을 공부하는 학생부터 현장에서 편곡하는 뮤지션까지, 코드 네비게이터로 더 빠르고 정확하게 작업하세요.\n\n이용약관(EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+      "whatsNew": "- 10개 언어를 지원합니다. 기기 언어에 맞춰 자동으로 표시됩니다: 한국어, 영어, 일본어, 중국어(간체), 스페인어, 프랑스어, 독일어, 포르투갈어, 러시아어, 이탈리아어.\n- AI 분석과 GPS 루트 추천도 기기 언어로 답합니다.\n- 사용설명서와 프리미엄 안내도 전부 번역했습니다."
+    },
+    "en-US": {
+      "name": "Chord Navigator",
+      "subtitle": "Guitar chords & music theory",
+      "keywords": "chord,chords,progression,guitar,piano,music theory,songwriting,scale,fretboard,harmony,jazz",
+      "promotionalText": "First month free! Enter a chord progression and see guitar and piano fingerings plus matching scales at once. AI analyzes it and suggests what comes next.",
+      "description": "Chord Navigator is a chord analysis app for guitarists and songwriters.\n\nEnter a chord progression and it analyzes the function and relationship of every chord, showing you the fingerings straight away on a guitar diagram.\n\nMain features\n• Progression analysis — key, scale degrees and chord function, worked out for you\n• Guitar diagrams — accurate fingerings, slash chords included\n• Scale view — scales and chord tones laid out on the fretboard\n• Piano diagrams — see the chord tones on the keys\n• Playback — hear the chords as you build them\n\nFrom students learning theory to musicians arranging on the job, Chord Navigator gets you there faster and with fewer mistakes.\n\nTerms of Use (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+      "whatsNew": "- The app now speaks 10 languages and follows your device setting: Korean, English, Japanese, Chinese (Simplified), Spanish, French, German, Portuguese, Russian and Italian.\n- AI analysis and GPS route suggestions answer in your language too.\n- The in-app guide and premium screens are fully translated."
+    },
+    "ja": {
+      "name": "Chord Navigator",
+      "subtitle": "ギターのコード進行と音楽理論",
+      "keywords": "コード,コード進行,ギターコード,ピアノコード,コード分析,和声,音楽理論,作曲,スケール,運指,ジャズ,弾き語り",
+      "promotionalText": "初月無料！コード進行を入力すると、ギターとピアノの運指、合うスケールがすぐに表示されます。AIが進行を分析し、次のコードを提案します。",
+      "description": "Chord Navigatorは、ギタリストと作曲する人のためのコード分析アプリです。\n\nコード進行を入力すると、各コードの機能と関係を分析し、ギターダイアグラムで運指をすぐに確認できます。\n\n主な機能\n• コード進行の分析 — 調、度数、コードの機能を自動で解析\n• ギターダイアグラム — 分数コードも含めた正確な運指表示\n• スケールビュー — スケールとコードトーンを指板上で可視化\n• ピアノダイアグラム — 鍵盤でコードの構成音を確認\n• 再生 — 組み立てながらコードの響きを確認\n\n音楽理論を学ぶ学生から、現場でアレンジするミュージシャンまで。Chord Navigatorでより速く、より正確に。\n\n利用規約(EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+      "whatsNew": "- 10言語に対応しました。端末の言語設定に合わせて自動で表示されます: 韓国語、英語、日本語、中国語(簡体字)、スペイン語、フランス語、ドイツ語、ポルトガル語、ロシア語、イタリア語。\n- AI分析とGPSルート提案も端末の言語で回答します。\n- 使い方ガイドとプレミアム画面もすべて翻訳しました。"
+    },
+    "zh-Hans": {
+      "name": "Chord Navigator",
+      "subtitle": "吉他和弦进行与乐理",
+      "keywords": "和弦,和弦进行,吉他和弦,钢琴和弦,和弦分析,和声,乐理,作曲,音阶,指法,爵士,弹唱",
+      "promotionalText": "首月免费！输入和弦进行，立刻看到吉他与钢琴指法以及合适的音阶。AI 会分析进行并推荐下一个和弦。",
+      "description": "Chord Navigator 是为吉他手和创作者打造的和弦分析应用。\n\n输入和弦进行，它会分析每个和弦的功能与彼此的关系，并用吉他指法图立刻显示按法。\n\n主要功能\n• 进行分析 — 自动判断调性、级数与和弦功能\n• 吉他指法图 — 准确显示按法，包含分数和弦\n• 音阶视图 — 在指板上呈现音阶与和弦音\n• 钢琴图 — 在键盘上查看和弦组成音\n• 试听播放 — 边写边听和弦的声音\n\n从学习乐理的学生，到现场编曲的乐手，Chord Navigator 让你更快、更准确。\n\n使用条款(EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+      "whatsNew": "- 现已支持 10 种语言，并跟随设备语言自动切换：韩语、英语、日语、简体中文、西班牙语、法语、德语、葡萄牙语、俄语、意大利语。\n- AI 分析与 GPS 路线推荐也会用你的语言回答。\n- 使用说明与高级版页面也已全部翻译。"
+    },
+    "es-ES": {
+      "name": "Chord Navigator",
+      "subtitle": "Acordes de guitarra y teoría",
+      "keywords": "acordes,progresion,guitarra,piano,armonia,teoria musical,componer,escalas,diapason,jazz,cifrado",
+      "promotionalText": "¡Primer mes gratis! Escribe una progresión y verás las digitaciones de guitarra y piano y las escalas que encajan. La IA la analiza y sugiere el siguiente acorde.",
+      "description": "Chord Navigator es una app de análisis de acordes para guitarristas y compositores.\n\nEscribe una progresión y la app analiza la función de cada acorde y su relación con los demás, mostrándote la digitación al instante en un diagrama de guitarra.\n\nFunciones principales\n• Análisis de progresiones — tonalidad, grados y función de cada acorde\n• Diagramas de guitarra — digitaciones exactas, acordes con bajo incluidos\n• Vista de escalas — escalas y notas del acorde sobre el diapasón\n• Diagramas de piano — las notas del acorde sobre las teclas\n• Reproducción — escucha los acordes mientras los montas\n\nDesde quien estudia armonía hasta quien arregla sobre la marcha: con Chord Navigator llegarás antes y con menos errores.\n\nTérminos de uso (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+      "whatsNew": "- La app está en 10 idiomas y sigue el ajuste de tu dispositivo: coreano, inglés, japonés, chino simplificado, español, francés, alemán, portugués, ruso e italiano.\n- El análisis con IA y las rutas GPS también responden en tu idioma.\n- La guía de uso y las pantallas Premium están totalmente traducidas."
+    },
+    "fr-FR": {
+      "name": "Chord Navigator",
+      "subtitle": "Accords guitare et théorie",
+      "keywords": "accords,progression,guitare,piano,harmonie,theorie musicale,composition,gammes,manche,jazz",
+      "promotionalText": "Premier mois offert ! Saisissez une progression : doigtés guitare et piano et gammes adaptées s'affichent aussitôt. L'IA analyse et propose la suite.",
+      "description": "Chord Navigator est une app d'analyse d'accords pour les guitaristes et les compositeurs.\n\nSaisissez une progression : l'app analyse la fonction de chaque accord et leurs relations, et affiche immédiatement le doigté sur un diagramme de guitare.\n\nFonctions principales\n• Analyse de progression — tonalité, degrés et fonction des accords\n• Diagrammes de guitare — doigtés précis, accords avec basse compris\n• Vue des gammes — gammes et notes d'accord sur le manche\n• Diagrammes de piano — les notes de l'accord sur le clavier\n• Lecture — écoutez les accords au fur et à mesure\n\nDe l'étudiant en harmonie au musicien qui arrange sur le vif, Chord Navigator vous fait gagner du temps et de la précision.\n\nConditions d'utilisation (EULA) : https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+      "whatsNew": "- L'app existe en 10 langues et suit le réglage de votre appareil : coréen, anglais, japonais, chinois simplifié, espagnol, français, allemand, portugais, russe et italien.\n- L'analyse IA et les itinéraires GPS répondent aussi dans votre langue.\n- Le guide d'utilisation et les écrans Premium sont entièrement traduits."
+    },
+    "de-DE": {
+      "name": "Chord Navigator",
+      "subtitle": "Gitarrenakkorde & Harmonik",
+      "keywords": "akkorde,akkordfolge,gitarre,klavier,harmonielehre,musiktheorie,komponieren,skalen,griffbrett,jazz",
+      "promotionalText": "Erster Monat gratis! Gib eine Akkordfolge ein und sieh sofort Gitarren- und Klaviergriffe sowie passende Skalen. Die KI analysiert und schlägt den nächsten Akkord vor.",
+      "description": "Chord Navigator ist eine App zur Akkordanalyse für Gitarristen und alle, die Songs schreiben.\n\nGib eine Akkordfolge ein: Die App analysiert Funktion und Zusammenhang jedes Akkords und zeigt dir den Griff direkt im Gitarrendiagramm.\n\nHauptfunktionen\n• Analyse der Akkordfolge — Tonart, Stufen und Akkordfunktion automatisch\n• Gitarrendiagramme — exakte Griffe, auch für Slash-Akkorde\n• Skalenansicht — Skalen und Akkordtöne auf dem Griffbrett\n• Klavierdiagramme — die Akkordtöne auf den Tasten\n• Wiedergabe — hör die Akkorde beim Bauen\n\nVon der Harmonielehre im Studium bis zum Arrangieren im Proberaum: Mit Chord Navigator geht es schneller und genauer.\n\nNutzungsbedingungen (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+      "whatsNew": "- Die App gibt es jetzt in 10 Sprachen und folgt der Einstellung deines Geräts: Koreanisch, Englisch, Japanisch, Chinesisch (vereinfacht), Spanisch, Französisch, Deutsch, Portugiesisch, Russisch und Italienisch.\n- KI-Analyse und GPS-Routen antworten ebenfalls in deiner Sprache.\n- Anleitung und Premium-Seiten sind vollständig übersetzt."
+    },
+    "pt-BR": {
+      "name": "Chord Navigator",
+      "subtitle": "Acordes de violão e teoria",
+      "keywords": "acordes,progressao,violao,guitarra,piano,harmonia,teoria musical,compor,escalas,braco,jazz",
+      "promotionalText": "Primeiro mês grátis! Digite uma progressão e veja na hora as digitações de violão e piano e as escalas que combinam. A IA analisa e sugere o próximo acorde.",
+      "description": "O Chord Navigator é um app de análise de acordes para violonistas, guitarristas e quem compõe.\n\nDigite uma progressão e o app analisa a função de cada acorde e a relação entre eles, mostrando a digitação na hora em um diagrama.\n\nPrincipais recursos\n• Análise de progressão — tom, graus e função dos acordes, automaticamente\n• Diagramas de violão — digitações exatas, incluindo acordes com baixo\n• Visão de escalas — escalas e notas do acorde no braço\n• Diagramas de piano — as notas do acorde nas teclas\n• Reprodução — ouça os acordes enquanto monta\n\nDe quem estuda harmonia a quem arranja na hora do ensaio: com o Chord Navigator você chega mais rápido e erra menos.\n\nTermos de uso (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+      "whatsNew": "- O app está em 10 idiomas e segue o ajuste do seu aparelho: coreano, inglês, japonês, chinês simplificado, espanhol, francês, alemão, português, russo e italiano.\n- A análise com IA e as rotas GPS também respondem no seu idioma.\n- O guia de uso e as telas Premium foram totalmente traduzidos."
+    },
+    "ru": {
+      "name": "Chord Navigator",
+      "subtitle": "Аккорды гитары и теория",
+      "keywords": "аккорды,последовательность,гитара,пианино,гармония,теория музыки,сочинение,гаммы,гриф,джаз",
+      "promotionalText": "Первый месяц бесплатно! Введите последовательность аккордов — сразу увидите аппликатуры для гитары и пианино и подходящие гаммы. ИИ разберёт её и подскажет продолжение.",
+      "description": "Chord Navigator — приложение для разбора аккордов, сделанное для гитаристов и тех, кто пишет музыку.\n\nВведите последовательность аккордов: приложение разберёт функцию каждого аккорда и их связи и сразу покажет аппликатуру на схеме грифа.\n\nВозможности\n• Разбор последовательности — тональность, ступени и функции аккордов автоматически\n• Схемы для гитары — точные аппликатуры, включая аккорды с басом\n• Гаммы — гаммы и тоны аккорда прямо на грифе\n• Схемы для пианино — тоны аккорда на клавишах\n• Воспроизведение — слушайте аккорды, пока собираете последовательность\n\nОт студента, который учит гармонию, до музыканта, который аранжирует на репетиции: с Chord Navigator быстрее и точнее.\n\nУсловия использования (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+      "whatsNew": "- Приложение теперь на 10 языках и следует настройке устройства: корейский, английский, японский, китайский (упрощённый), испанский, французский, немецкий, португальский, русский и итальянский.\n- ИИ-разбор и GPS-маршруты тоже отвечают на вашем языке.\n- Руководство и экраны Премиума переведены полностью."
+    },
+    "it": {
+      "name": "Chord Navigator",
+      "subtitle": "Accordi di chitarra e teoria",
+      "keywords": "accordi,progressione,chitarra,piano,armonia,teoria musicale,comporre,scale,manico,jazz",
+      "promotionalText": "Primo mese gratis! Inserisci una progressione e vedi subito le diteggiature per chitarra e piano e le scale adatte. L'IA la analizza e propone l'accordo successivo.",
+      "description": "Chord Navigator è un'app di analisi degli accordi per chitarristi e per chi scrive canzoni.\n\nInserisci una progressione: l'app analizza la funzione di ogni accordo e i rapporti fra loro, e ti mostra subito la diteggiatura sul diagramma della chitarra.\n\nFunzioni principali\n• Analisi della progressione — tonalità, gradi e funzione degli accordi in automatico\n• Diagrammi per chitarra — diteggiature precise, accordi con basso compresi\n• Vista scale — scale e note dell'accordo sul manico\n• Diagrammi per piano — le note dell'accordo sui tasti\n• Riproduzione — ascolta gli accordi mentre li costruisci\n\nDa chi studia armonia a chi arrangia in sala prove: con Chord Navigator arrivi prima e sbagli meno.\n\nTermini d'uso (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+      "whatsNew": "- L'app è in 10 lingue e segue l'impostazione del dispositivo: coreano, inglese, giapponese, cinese semplificato, spagnolo, francese, tedesco, portoghese, russo e italiano.\n- L'analisi IA e i percorsi GPS rispondono anch'essi nella tua lingua.\n- La guida e le schermate Premium sono tradotte per intero."
+    }
+  }
+}
