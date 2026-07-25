@@ -25,7 +25,7 @@ export const LANG = detectLang();
 
 /**
  * 번역 조회 (키 기준: STRINGS[key] = { ko, en, ja, ... }). 없으면 영어 → 키 폴백.
- * t('play')  또는  t('addN', { n: 3 })  (문자열 안 {n} 치환)
+ * t('play')  또는  t('measureN', { n: 3 })  (문자열 안 {n} 치환)
  */
 export function t(key, params) {
   const entry = TABLE[key];
@@ -36,6 +36,21 @@ export function t(key, params) {
     Object.keys(params).forEach(k => { s = String(s).split('{' + k + '}').join(params[k]); });
   }
   return s;
+}
+
+/**
+ * 기타 포지션 라벨 번역.
+ * musicData의 pos는 '오픈' / '7프렛' / 'A형 3프렛' 세 가지 형태뿐이라
+ * 400개 문자열을 다 번역하지 않고 여기서 패턴으로 푼다.
+ */
+export function posLabel(pos) {
+  if (!pos) return pos;
+  if (pos === '오픈') return t('posOpen');
+  const shaped = pos.match(/^([A-G])형\s*(\d+)프렛$/);
+  if (shaped) return t('posShapeFret', { shape: shaped[1], fret: shaped[2] });
+  const fret = pos.match(/^(\d+)프렛$/);
+  if (fret) return t('posFret', { fret: fret[1] });
+  return pos;
 }
 
 // AI 응답 언어명 (Worker에 전달 → 해당 언어로 답)

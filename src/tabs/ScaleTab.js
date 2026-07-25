@@ -25,7 +25,7 @@ function recommendScales(progression, notes) {
       let match = 0;
       usedNotes.forEach(n => { if (scaleSet.has(n)) match++; });
       const score = match / usedNotes.size;
-      if (score >= 0.75) results.push({ key, scaleIdx: si, score, label: `${key} ${sc.label}` });
+      if (score >= 0.75) results.push({ key, scaleIdx: si, score, label: `${key} ${t(sc.labelKey)}` });
     });
   });
   return results.sort((a, b) => b.score - a.score).slice(0, 4);
@@ -120,7 +120,7 @@ export default function ScaleTab() {
             key={i}
             style={[styles.scBtn, selScale === i && styles.scBtnSel]}
             onPress={() => setSelScale(selScale === i ? null : i)}>
-            <Text style={[styles.scBtnLabel, selScale === i && styles.scBtnLabelSel]}>{sc.label}</Text>
+            <Text style={[styles.scBtnLabel, selScale === i && styles.scBtnLabelSel]}>{t(sc.labelKey)}</Text>
             <Text style={styles.scBtnName}>{sc.name}</Text>
           </TouchableOpacity>
         ))}
@@ -129,7 +129,7 @@ export default function ScaleTab() {
       {selScale !== null && (
         <>
           {/* 구성음 */}
-          <Text style={styles.label}>{t('chordTones')} — {activeKey} {SCALE_MODES[selScale].label}</Text>
+          <Text style={styles.label}>{t('chordTones')} — {activeKey} {t(SCALE_MODES[selScale].labelKey)}</Text>
           <View style={styles.notesRow}>
             {scaleNotes.map((n, i) => (
               <View key={i} style={[styles.noteChip, i === 0 && styles.noteChipRoot]}>
@@ -156,7 +156,7 @@ export default function ScaleTab() {
             {scaleInstr === 'guitar' ? (
               <ScaleFretboard scaleKey={activeKey} intervals={SCALE_MODES[selScale].intervals} />
             ) : (
-              <PianoDiagram activeNotes={new Set(scaleNotes)} name={`${activeKey} ${SCALE_MODES[selScale].label}`} />
+              <PianoDiagram activeNotes={new Set(scaleNotes)} name={`${activeKey} ${t(SCALE_MODES[selScale].labelKey)}`} />
             )}
           </View>
 

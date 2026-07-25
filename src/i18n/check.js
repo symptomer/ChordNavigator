@@ -62,7 +62,8 @@ for (const k of keys) {
 }
 
 // 4) 사용/미사용 키
-const srcFiles = files.filter(f => !f.includes(`${path.sep}i18n${path.sep}`));
+// 번역 테이블 자체만 제외 — i18n/index.js의 posLabel()처럼 헬퍼 안에서 쓰는 t()도 사용으로 잡아야 함
+const srcFiles = files.filter(f => !/strings(_manual)?\.js$|check\.js$/.test(f));
 const used = new Set();
 for (const f of srcFiles) {
   const txt = fs.readFileSync(f, 'utf8');

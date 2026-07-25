@@ -14,7 +14,7 @@ import { SONG_PATTERNS } from '../data/songPatterns';
 import GuitarDiagram from '../components/GuitarDiagram';
 import PianoDiagram  from '../components/PianoDiagram';
 import Purchases from '../utils/purchases';
-import { t } from '../i18n';
+import { t, posLabel, LANG_NAME } from '../i18n';
 
 // AI GPS 백엔드 (Cloudflare Worker) — API 키는 서버에만, 앱엔 없음
 const WORKER_URL = 'https://chordnavigator-ai.symptomer.workers.dev';
@@ -195,8 +195,7 @@ function getLocalGPSRoutes(curChord, chords, selGenre, levelDef, mode) {
 
 // ── GPS 루트 API 호출 ────────────────────────────────────────────
 async function fetchGPSRoutes({ progression, curChord, activeKey, selMode, selLevel, selGenre, appUserId, chords }) {
-  const levelStr   = selLevel === 'beginner' ? '입문' : selLevel === 'mid' ? '중급' : '재즈';
-  const genreLabel = GENRE_PROGS[selGenre]?.name || '팝';
+  // 레벨·장르는 키 그대로 보낸다 (Worker가 영문 표기로 바꿔 프롬프트에 넣음)
 
   // 진행 도수 패턴 문자열
   const degNames  = ['I','II','III','IV','V','VI','VII'];
@@ -239,10 +238,11 @@ async function fetchGPSRoutes({ progression, curChord, activeKey, selMode, selLe
       progression: progNames,
       progDeg,
       detectedGenre: detectedG,
-      genre: genreLabel,
-      level: levelStr,
+      genre: selGenre,
+      level: selLevel,
       key: activeKey,
       mode: selMode,
+      lang: LANG_NAME,   // 기기 언어로 답하게
     }),
   });
 
@@ -1398,7 +1398,7 @@ export default function ChordsTab({ onTranspose }) {
                       style={[styles.posBtn, guitarIdx === i && styles.posBtnSel]}
                       onPress={() => setDiagPosIdx(i)}>
                       <Text style={[styles.posBtnText, guitarIdx === i && styles.posBtnTextSel]}>
-                        {p.pos || t('positionN', { n: i + 1 })}
+                        {posLabel(p.pos) || t('positionN', { n: i + 1 })}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -1446,7 +1446,7 @@ export default function ChordsTab({ onTranspose }) {
                     shape={positions[guitarIdx] || null}
                     name={variantChordName}
                     displayName={variantDisplayName}
-                    posLabel={positions[guitarIdx]?.pos}
+                    posLabel={posLabel(positions[guitarIdx]?.pos)}
                     slashBass={hasSlash ? slashBassRaw : undefined}
                   />
                 ) : (

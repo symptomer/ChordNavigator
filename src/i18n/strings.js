@@ -297,5 +297,26 @@ export const STRINGS = {
   ppPayProc:    { ko: '결제 처리', en: 'Payment processing', ja: '決済処理', zh: '付款处理', es: 'Procesamiento de pagos', fr: 'Traitement des paiements', de: 'Zahlungsabwicklung', pt: 'Processamento de pagamentos', ru: 'Обработка платежей', it: 'Elaborazione dei pagamenti' },
   ppSeeEach:    { ko: '각 서비스의 개인정보처리방침을 참고하세요.', en: 'Please refer to each service’s own privacy policy.', ja: '各サービスのプライバシーポリシーをご参照ください。', zh: '请参阅各服务自己的隐私政策。', es: 'Consulta la política de privacidad de cada servicio.', fr: 'Reportez-vous à la politique de confidentialité de chaque service.', de: 'Bitte beachte die Datenschutzerklärung des jeweiligen Dienstes.', pt: 'Consulte a política de privacidade de cada serviço.', ru: 'Ознакомьтесь с политикой конфиденциальности каждого сервиса.', it: 'Consulta l’informativa privacy di ciascun servizio.' },
 
+  // ── 기타 포지션 라벨 (musicData의 pos를 패턴으로 번역) ──
+  posOpen:      { ko: '오픈', en: 'Open', ja: 'オープン', zh: '开放', es: 'Abierto', fr: 'Ouvert', de: 'Offen', pt: 'Aberto', ru: 'Откр.', it: 'Aperto' },
+  posFret:      { ko: '{fret}프렛', en: 'Fret {fret}', ja: '{fret}フレット', zh: '第{fret}品', es: 'Traste {fret}', fr: 'Case {fret}', de: 'Bund {fret}', pt: 'Casa {fret}', ru: 'Лад {fret}', it: 'Tasto {fret}' },
+  posShapeFret: { ko: '{shape}형 {fret}프렛', en: '{shape} shape, fret {fret}', ja: '{shape}フォーム {fret}フレット', zh: '{shape}型 第{fret}品', es: 'Forma {shape}, traste {fret}', fr: 'Forme {shape}, case {fret}', de: '{shape}-Form, Bund {fret}', pt: 'Forma {shape}, casa {fret}', ru: 'Форма {shape}, лад {fret}', it: 'Forma {shape}, tasto {fret}' },
+
+  // ── 스케일 모드 이름 ──
+  scaleIonian:     { ko: '장조', en: 'Major', ja: '長調', zh: '大调', es: 'Mayor', fr: 'Majeur', de: 'Dur', pt: 'Maior', ru: 'Мажор', it: 'Maggiore' },
+  scaleDorian:     { ko: '도리안', en: 'Dorian', ja: 'ドリアン', zh: '多利亚', es: 'Dórico', fr: 'Dorien', de: 'Dorisch', pt: 'Dórico', ru: 'Дорийский', it: 'Dorico' },
+  scalePhrygian:   { ko: '프리지안', en: 'Phrygian', ja: 'フリジアン', zh: '弗里几亚', es: 'Frigio', fr: 'Phrygien', de: 'Phrygisch', pt: 'Frígio', ru: 'Фригийский', it: 'Frigio' },
+  scaleLydian:     { ko: '리디안', en: 'Lydian', ja: 'リディアン', zh: '利底亚', es: 'Lidio', fr: 'Lydien', de: 'Lydisch', pt: 'Lídio', ru: 'Лидийский', it: 'Lidio' },
+  scaleMixolydian: { ko: '믹솔리디안', en: 'Mixolydian', ja: 'ミクソリディアン', zh: '混合利底亚', es: 'Mixolidio', fr: 'Mixolydien', de: 'Mixolydisch', pt: 'Mixolídio', ru: 'Миксолидийский', it: 'Misolidio' },
+  scaleAeolian:    { ko: '자연단음계', en: 'Natural minor', ja: '自然的短音階', zh: '自然小调', es: 'Menor natural', fr: 'Mineur naturel', de: 'Natürlich Moll', pt: 'Menor natural', ru: 'Натуральный минор', it: 'Minore naturale' },
+  scaleHarmMinor:  { ko: '화성단음계', en: 'Harmonic minor', ja: '和声的短音階', zh: '和声小调', es: 'Menor armónica', fr: 'Mineur harmonique', de: 'Harmonisch Moll', pt: 'Menor harmônica', ru: 'Гармонический минор', it: 'Minore armonica' },
+  scalePentMajor:  { ko: '메이저 펜타', en: 'Major pentatonic', ja: 'メジャーペンタ', zh: '大调五声', es: 'Pentatónica mayor', fr: 'Pentatonique majeure', de: 'Dur-Pentatonik', pt: 'Pentatônica maior', ru: 'Мажорная пентатоника', it: 'Pentatonica maggiore' },
+  scalePentMinor:  { ko: '마이너 펜타', en: 'Minor pentatonic', ja: 'マイナーペンタ', zh: '小调五声', es: 'Pentatónica menor', fr: 'Pentatonique mineure', de: 'Moll-Pentatonik', pt: 'Pentatônica menor', ru: 'Минорная пентатоника', it: 'Pentatonica minore' },
+  scaleBlues:      { ko: '블루스', en: 'Blues', ja: 'ブルース', zh: '布鲁斯', es: 'Blues', fr: 'Blues', de: 'Blues', pt: 'Blues', ru: 'Блюз', it: 'Blues' },
+
+  // ── 다이어그램 라벨 ──
+  leftHandBass: { ko: '왼손(베이스)', en: 'Left hand (bass)', ja: '左手（ベース）', zh: '左手（低音）', es: 'Mano izq. (bajo)', fr: 'Main gauche (basse)', de: 'Linke Hand (Bass)', pt: 'Mão esq. (baixo)', ru: 'Левая (бас)', it: 'Mano sin. (basso)' },
+  noFingeringData: { ko: '운지 데이터 없음', en: 'No fingering data', ja: '運指データなし', zh: '没有指法数据', es: 'Sin datos de digitación', fr: 'Pas de doigté', de: 'Keine Griffdaten', pt: 'Sem dados de digitação', ru: 'Нет аппликатуры', it: 'Nessuna diteggiatura' },
+
   deleteProgConfirm: { ko: '이 진행을 삭제할까요?', en: 'Delete this progression?', ja: 'この進行を削除しますか？', zh: '要删除这段进行吗？', es: '¿Eliminar esta progresión?', fr: 'Supprimer cette progression ?', de: 'Diese Folge löschen?', pt: 'Excluir esta progressão?', ru: 'Удалить эту последовательность?', it: 'Eliminare questa progressione?' },
 };

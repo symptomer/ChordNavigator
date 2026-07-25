@@ -4,6 +4,7 @@ import Svg, { Line, Circle, Rect, Text as SvgText } from 'react-native-svg';
 import { COLORS, NOTES } from '../data/musicData';
 import { getChordTones, flatNote } from '../utils/musicUtils';
 import { useApp } from '../context/AppContext';
+import { t } from '../i18n';
 
 // 가로 방향 기타 다이어그램
 // 저음 E줄 = 하단, 고음 e줄 = 상단
@@ -62,7 +63,7 @@ export default function GuitarDiagram({ shape, name, displayName, posLabel, slas
   if (!shape) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyText}>운지 데이터 없음</Text>
+        <Text style={styles.emptyText}>{t('noFingeringData')}</Text>
       </View>
     );
   }
@@ -188,7 +189,7 @@ export default function GuitarDiagram({ shape, name, displayName, posLabel, slas
         return (
           <>
             <SvgText x={LEFT} y={ROW_Y - 14} fill={COLORS.text2} fontSize={7}
-              textAnchor="start">구성음</SvgText>
+              textAnchor="start">{t('chordTones')}</SvgText>
             {allChordTones.map((tone, idx) => {
               const present = playedNotes.has(tone);
               const cx = LEFT + 16 + idx * spacing;

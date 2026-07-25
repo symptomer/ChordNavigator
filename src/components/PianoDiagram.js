@@ -3,6 +3,7 @@ import Svg, { Rect, Text as SvgText } from 'react-native-svg';
 import { COLORS, NOTES } from '../data/musicData';
 import { ki, flatNote, getInversionKeys, getSlashBassKeys } from '../utils/musicUtils';
 import { useApp } from '../context/AppContext';
+import { t } from '../i18n';
 
 const W = 300, H = 150;
 
@@ -91,9 +92,9 @@ export default function PianoDiagram({ activeNotes, name, rootNote, chordInterva
       {isChordMode && (
         <>
           <Rect x={W/2 - 56} y={20} width={8} height={8} fill={LH_COLOR} rx={1} />
-          <SvgText x={W/2 - 44} y={27} fill={COLORS.text2} fontSize={8}>왼손(베이스)</SvgText>
+          <SvgText x={W/2 - 44} y={27} fill={COLORS.text2} fontSize={8}>{t('leftHandBass')}</SvgText>
           <Rect x={W/2 + 28} y={20} width={8} height={8} fill={RH_COLOR} rx={1} />
-          <SvgText x={W/2 + 40} y={27} fill={COLORS.text2} fontSize={8}>코드톤</SvgText>
+          <SvgText x={W/2 + 40} y={27} fill={COLORS.text2} fontSize={8}>{t('chordTones')}</SvgText>
         </>
       )}
 

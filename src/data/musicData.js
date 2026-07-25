@@ -1225,26 +1225,28 @@ export const FRET_SHAPES = Object.fromEntries(
   Object.entries(CHORD_POSITIONS).map(([k, v]) => [k, v[0]])
 );
 
+// 표시 이름은 nameKey로만 둔다 (t()로 조회) — 데이터 파일에 한글을 박지 않는다
 export const GENRE_PROGS = {
-  pop:    { name:'팝',      patterns:['I-V-VI-IV','I-IV-V-I'] },
-  rock:   { name:'록',      patterns:['I-IV-V-I','I-bVII-IV-I'] },
-  jazz:   { name:'재즈',    patterns:['II-V-I','I-VI-II-V'] },
-  rnb:    { name:'R&B',     patterns:['I-IVmaj7-bVII-IV','VI-IV-I-V'] },
-  ballad: { name:'발라드',  patterns:['I-V-VI-IV','I-IV-I-V'] },
-  bossa:  { name:'보사노바',patterns:['Imaj7-VI7-IIm7-V7'] },
+  pop:    { nameKey:'genrePop',    patterns:['I-V-VI-IV','I-IV-V-I'] },
+  rock:   { nameKey:'genreRock',   patterns:['I-IV-V-I','I-bVII-IV-I'] },
+  jazz:   { nameKey:'genreJazz',   patterns:['II-V-I','I-VI-II-V'] },
+  rnb:    { nameKey:'genreRnb',    patterns:['I-IVmaj7-bVII-IV','VI-IV-I-V'] },
+  ballad: { nameKey:'genreBallad', patterns:['I-V-VI-IV','I-IV-I-V'] },
+  bossa:  { nameKey:'genreBossa',  patterns:['Imaj7-VI7-IIm7-V7'] },
 };
 
+// name = 만국 공통 이론 용어(그대로 표기), labelKey = 번역할 우리말 설명
 export const SCALE_MODES = [
-  { name:'Ionian (장조)',      label:'장조',       intervals:[0,2,4,5,7,9,11] },
-  { name:'Dorian',             label:'도리안',     intervals:[0,2,3,5,7,9,10] },
-  { name:'Phrygian',           label:'프리지안',   intervals:[0,1,3,5,7,8,10] },
-  { name:'Lydian',             label:'리디안',     intervals:[0,2,4,6,7,9,11] },
-  { name:'Mixolydian',         label:'믹솔리디안', intervals:[0,2,4,5,7,9,10] },
-  { name:'Aeolian (단조)',     label:'자연단음계', intervals:[0,2,3,5,7,8,10] },
-  { name:'Harmonic Minor',     label:'화성단음계', intervals:[0,2,3,5,7,8,11] },
-  { name:'Pentatonic Major',   label:'메이저 펜타',intervals:[0,2,4,7,9] },
-  { name:'Pentatonic Minor',   label:'마이너 펜타',intervals:[0,3,5,7,10] },
-  { name:'Blues',              label:'블루스',     intervals:[0,3,5,6,7,10] },
+  { name:'Ionian',           labelKey:'scaleIonian',     intervals:[0,2,4,5,7,9,11] },
+  { name:'Dorian',           labelKey:'scaleDorian',     intervals:[0,2,3,5,7,9,10] },
+  { name:'Phrygian',         labelKey:'scalePhrygian',   intervals:[0,1,3,5,7,8,10] },
+  { name:'Lydian',           labelKey:'scaleLydian',     intervals:[0,2,4,6,7,9,11] },
+  { name:'Mixolydian',       labelKey:'scaleMixolydian', intervals:[0,2,4,5,7,9,10] },
+  { name:'Aeolian',          labelKey:'scaleAeolian',    intervals:[0,2,3,5,7,8,10] },
+  { name:'Harmonic Minor',   labelKey:'scaleHarmMinor',  intervals:[0,2,3,5,7,8,11] },
+  { name:'Pentatonic Major', labelKey:'scalePentMajor',  intervals:[0,2,4,7,9] },
+  { name:'Pentatonic Minor', labelKey:'scalePentMinor',  intervals:[0,3,5,7,10] },
+  { name:'Blues',            labelKey:'scaleBlues',      intervals:[0,3,5,6,7,10] },
 ];
 
 export const COLORS = {

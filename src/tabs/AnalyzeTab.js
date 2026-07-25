@@ -8,7 +8,7 @@ import { usePurchase } from '../context/PurchaseContext';
 import { COLORS, GENRE_PROGS } from '../data/musicData';
 import { getChords } from '../utils/musicUtils';
 import Purchases from '../utils/purchases';
-import { t } from '../i18n';
+import { t, LANG_NAME } from '../i18n';
 
 // AI 분석 백엔드 (Cloudflare Worker) — API 키는 서버에만, 앱엔 없음
 const WORKER_URL = 'https://chordnavigator-ai.symptomer.workers.dev';
@@ -36,8 +36,6 @@ export default function AnalyzeTab() {
     if (!progInput.trim()) { Alert.alert(t('alertEnterChords')); return; }
     setLoading(true); setResults(null);
 
-    const levelMap = { beginner: '입문', mid: '중급', jazz: '재즈' };
-
     try {
       const appUserId = await Purchases.getAppUserID();
       const res  = await fetch(WORKER_URL, {
@@ -46,10 +44,11 @@ export default function AnalyzeTab() {
         body: JSON.stringify({
           appUserId,
           progression: progInput,
-          genre: GENRE_PROGS[selGenre]?.name,
-          level: levelMap[selLevel],
+          genre: selGenre,   // 키 그대로 (Worker가 영문 표기로 변환)
+          level: selLevel,
           key:   activeKey,
           mode:  selMode,
+          lang:  LANG_NAME,  // 기기 언어로 답하게
         }),
       });
       const data = await res.json();
@@ -143,7 +142,7 @@ export default function AnalyzeTab() {
             key={k}
             style={[styles.gbtn, selGenre === k && styles.gbtnSel]}
             onPress={() => setSelGenre(k)}>
-            <Text style={[styles.gbtnText, selGenre === k && styles.gbtnTextSel]}>{v.name}</Text>
+            <Text style={[styles.gbtnText, selGenre === k && styles.gbtnTextSel]}>{t(v.nameKey)}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -183,7 +182,7 @@ export default function AnalyzeTab() {
             desc={results.json.analysis}
             onPlay={() => playSeq(results.original.split(/\s+/))} />
           {[
-            { key: 'genre_version',     label: t('resGenreRec', { genre: GENRE_PROGS[selGenre]?.name }), color: COLORS.pink },
+            { key: 'genre_version',     label: t('resGenreRec', { genre: t(GENRE_PROGS[selGenre]?.nameKey) }), color: COLORS.pink },
             { key: 'level_version',     label: selLevel === 'jazz' ? t('resJazzReharm') : selLevel === 'mid' ? t('resMidVersion') : t('resBeginnerVersion'), color: COLORS.purple },
             { key: 'substitute_version',label: t('resSubVersion'), color: COLORS.accent },
           ].map(v => {
