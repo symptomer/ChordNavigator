@@ -30,7 +30,9 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [],
+    "plugins": [
+      "expo-localization"
+    ],
     "extra": {
       "eas": {
         "projectId": "4fe45bce-6420-4ead-98dc-8c5e0a45d8c2"

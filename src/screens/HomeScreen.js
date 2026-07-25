@@ -5,6 +5,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { usePurchase } from '../context/PurchaseContext';
 import { COLORS, NOTES } from '../data/musicData';
+import { t } from '../i18n';
 import ManualModal from './ManualModal';
 
 export default function HomeScreen({ navigation }) {
@@ -29,19 +30,19 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
           <Text style={styles.heroChar}>♩</Text>
           <Text style={styles.heroTitle}>CHORD NAVIGATOR</Text>
-          <Text style={styles.heroSub}>코드 진행 탐색기</Text>
+          <Text style={styles.heroSub}>{t('appSubtitle')}</Text>
 
           <TouchableOpacity
             style={[styles.premiumPill, isPremium && styles.premiumPillActive]}
             onPress={() => showPaywall()}
             activeOpacity={0.8}>
             <Text style={[styles.premiumPillText, isPremium && styles.premiumPillTextActive]}>
-              {isPremium ? '✦ 프리미엄 이용 중' : '✦ 프리미엄 잠금 해제'}
+              {isPremium ? t('premiumActive') : t('premiumUnlock')}
             </Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.label}>키 선택</Text>
+        <Text style={styles.label}>{t('selectKey')}</Text>
         <View style={styles.keyGrid}>
           {NOTES.map(k => (
             <TouchableOpacity
@@ -53,9 +54,9 @@ export default function HomeScreen({ navigation }) {
           ))}
         </View>
 
-        <Text style={styles.label}>장조 / 단조</Text>
+        <Text style={styles.label}>{t('majorMinor')}</Text>
         <View style={styles.modeRow}>
-          {[['major','장조'],['minor','단조']].map(([m, label]) => (
+          {[['major', t('major')],['minor', t('minor')]].map(([m, label]) => (
             <TouchableOpacity
               key={m}
               style={[styles.mbtn, selMode === m && styles.mbtnSel]}
@@ -65,9 +66,9 @@ export default function HomeScreen({ navigation }) {
           ))}
         </View>
 
-        <Text style={styles.label}>레벨</Text>
+        <Text style={styles.label}>{t('level')}</Text>
         <View style={styles.levelRow}>
-          {[['beginner','입문'],['mid','중급'],['jazz','재즈']].map(([lv, label]) => (
+          {[['beginner', t('levelBeginner')],['mid', t('levelMid')],['jazz', t('levelJazz')]].map(([lv, label]) => (
             <TouchableOpacity
               key={lv}
               style={[styles.lvbtn, selLevel === lv && styles.lvbtnSel]}
@@ -76,19 +77,19 @@ export default function HomeScreen({ navigation }) {
                 setSelLevel(lv);
               }}>
               <Text style={[styles.lvbtnText, selLevel === lv && styles.lvbtnTextSel]}>
-                {lv === 'jazz' && !isPremium ? '🔒 재즈' : label}
+                {lv === 'jazz' && !isPremium ? t('jazzLocked') : label}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
         <View style={styles.previewBox}>
-          <Text style={styles.previewLabel}>선택된 키</Text>
-          <Text style={styles.previewKey}>{selKey} {selMode === 'major' ? '장조' : '단조'}</Text>
+          <Text style={styles.previewLabel}>{t('selectedKeyLabel')}</Text>
+          <Text style={styles.previewKey}>{selKey} {selMode === 'major' ? t('major') : t('minor')}</Text>
         </View>
 
         <TouchableOpacity style={styles.startBtn} onPress={start}>
-          <Text style={styles.startBtnText}>▶ 탐색 시작</Text>
+          <Text style={styles.startBtnText}>{t('startExplore')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
