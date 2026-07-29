@@ -39,3 +39,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# 빌드 산출물 / 백업 (실수 커밋 방지)
+*.ipa
+*.bak
+*.bak.*
