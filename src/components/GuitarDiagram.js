@@ -5,6 +5,7 @@ import { COLORS, NOTES } from '../data/musicData';
 import { getChordTones, flatNote } from '../utils/musicUtils';
 import { useApp } from '../context/AppContext';
 import { t } from '../i18n';
+import { DIAGRAM_SCALE } from '../utils/layout';
 
 // 가로 방향 기타 다이어그램
 // 저음 E줄 = 하단, 고음 e줄 = 상단
@@ -86,7 +87,7 @@ export default function GuitarDiagram({ shape, name, displayName, posLabel, slas
   const stringY = i => TOP + GH - i * DY;
 
   return (
-    <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+    <Svg width={W * DIAGRAM_SCALE} height={H * DIAGRAM_SCALE} viewBox={`0 0 ${W} ${H}`}>
       {/* 제목 */}
       <SvgText x={W / 2} y={16} textAnchor="middle" fill={COLORS.accent}
         fontSize={12} fontWeight="bold">{displayName || name}</SvgText>

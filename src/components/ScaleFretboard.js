@@ -2,6 +2,7 @@ import React from 'react';
 import Svg, { Line, Circle, Text as SvgText } from 'react-native-svg';
 import { NOTES, COLORS } from '../data/musicData';
 import { ki } from '../utils/musicUtils';
+import { DIAGRAM_SCALE } from '../utils/layout';
 
 // GuitarDiagram과 동일 방향: 줄=가로선, 프렛=세로선
 // 저음 E(index 0) = 하단, 고음 e(index 5) = 상단
@@ -43,7 +44,7 @@ export default function ScaleFretboard({ scaleKey, intervals }) {
   }
 
   return (
-    <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+    <Svg width={W * DIAGRAM_SCALE} height={H * DIAGRAM_SCALE} viewBox={`0 0 ${W} ${H}`}>
       {/* 프렛 마커 (배경 점) */}
       {MARKER_FRETS.map(f => {
         const cx = fretCX(f);

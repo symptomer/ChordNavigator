@@ -4,6 +4,7 @@ import { COLORS, NOTES } from '../data/musicData';
 import { ki, flatNote, getInversionKeys, getSlashBassKeys } from '../utils/musicUtils';
 import { useApp } from '../context/AppContext';
 import { t } from '../i18n';
+import { DIAGRAM_SCALE } from '../utils/layout';
 
 const W = 300, H = 150;
 
@@ -84,7 +85,7 @@ export default function PianoDiagram({ activeNotes, name, rootNote, chordInterva
   }
 
   return (
-    <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+    <Svg width={W * DIAGRAM_SCALE} height={H * DIAGRAM_SCALE} viewBox={`0 0 ${W} ${H}`}>
       <SvgText x={W / 2} y={14} textAnchor="middle" fill={COLORS.accent}
         fontSize={12} fontWeight="bold">{name}</SvgText>
 
