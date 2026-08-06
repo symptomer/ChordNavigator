@@ -1,0 +1,21 @@
+{
+  "_readme": [
+    "1.0.5 릴리스노트(whatsNew) 10개 언어.",
+    "이 버전의 앱 변경은 2가지뿐: ①마디 자동전환 2→4 ②아이패드 다이어그램 확대",
+    "쓰기: node asc/push-release-notes.js 1.0.5 --apply",
+    "⚠️ whatsNew만 덮어씁니다. 설명·키워드·부제·프로모션은 건드리지 않습니다",
+    "⚠️ ASC 입력칸이 특수문자를 거부한 적 있어 글머리표는 '-'만 씁니다"
+  ],
+  "notes": {
+    "ko": "- 마디가 코드 2개마다 넘어가던 것을 4개로 바로잡았습니다. 이제 한 마디에 코드 4개까지 들어가고, 마디는 [+] 버튼으로도 직접 넘길 수 있습니다.\n- 아이패드에서 기타 운지, 피아노 건반, 스케일 지판 그림이 화면에 맞게 크게 보입니다.",
+    "en-US": "- Fixed bars advancing after only 2 chords. A bar now holds up to 4 chords, and you can still start a new bar yourself with [+].\n- On iPad, the guitar fingering, piano keyboard and scale fretboard diagrams are now drawn larger to suit the screen.",
+    "ja": "- 小節がコード2つで次に進んでいたのを4つに修正しました。1小節にコードが4つまで入り、[+]ボタンで自分で小節を進めることもできます。\n- iPadでギターの運指・ピアノ鍵盤・スケール指板の図が画面に合わせて大きく表示されます。",
+    "zh-Hans": "- 修正了每输入 2 个和弦就跳到下一小节的问题。现在一小节最多可放 4 个和弦，也仍可用 [+] 手动开始新小节。\n- 在 iPad 上，吉他指法、钢琴键盘与音阶指板图会按屏幕放大显示。",
+    "es-ES": "- Corregido: los compases avanzaban con solo 2 acordes. Ahora un compás admite hasta 4 acordes y puedes seguir empezando uno nuevo con [+].\n- En iPad, los diagramas de digitación de guitarra, teclado de piano y diapasón de escalas se ven más grandes, acordes con la pantalla.",
+    "fr-FR": "- Correction : les mesures passaient à la suivante au bout de 2 accords seulement. Une mesure accepte désormais jusqu'à 4 accords, et vous pouvez toujours en commencer une avec [+].\n- Sur iPad, les diagrammes de doigté guitare, de clavier et de manche pour les gammes s'affichent en plus grand.",
+    "de-DE": "- Behoben: Takte sprangen schon nach 2 Akkorden weiter. Ein Takt fasst jetzt bis zu 4 Akkorde, und mit [+] kannst du weiterhin selbst einen neuen Takt beginnen.\n- Auf dem iPad werden Gitarrengriffe, Klaviatur und Skalen-Griffbrett passend zum Bildschirm größer dargestellt.",
+    "pt-BR": "- Corrigido: os compassos avançavam com apenas 2 acordes. Agora um compasso comporta até 4 acordes, e você ainda pode iniciar um novo com [+].\n- No iPad, os diagramas de digitação do violão, do teclado e do braço para escalas aparecem maiores, adequados à tela.",
+    "ru": "- Исправлено: такт переходил к следующему уже после 2 аккордов. Теперь в такт помещается до 4 аккордов, а начать новый такт по-прежнему можно кнопкой [+].\n- На iPad схемы аппликатур гитары, клавиатуры и грифа для гамм отображаются крупнее, по размеру экрана.",
+    "it": "- Corretto: le battute passavano alla successiva dopo soli 2 accordi. Ora una battuta contiene fino a 4 accordi e puoi comunque iniziarne una nuova con [+].\n- Su iPad i diagrammi di diteggiatura per chitarra, la tastiera del piano e il manico per le scale sono più grandi, adatti allo schermo."
+  }
+}
