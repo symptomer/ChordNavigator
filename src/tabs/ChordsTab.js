@@ -25,7 +25,7 @@ const TO_MAJ = { m: '', m7: 'maj7', m9: 'maj9', m6: '6', m11: 'm9', mMaj7: 'maj7
 function flipVariant(variant, toMin) { return (toMin ? TO_MIN : TO_MAJ)[variant || '']; }
 
 // 기본 마디 크기 (1마디 당 코드 수) — 자동 분할·루트 적용 기준
-const MEASURE_SIZE = 2;
+const MEASURE_SIZE = 4;
 
 // 도수별 역할 레이블 (GPS 카드용)
 const CHORD_ROLE = {
@@ -637,7 +637,9 @@ export default function ChordsTab({ onTranspose }) {
       if (progression.length >= maxProg) return;
       setProgression(prev => [...prev, entry]);
       setEditIdx(null);
-      // 마지막 마디가 MEASURE_SIZE 코드가 되면 자동으로 새 마디 시작
+      // 마지막 마디가 MEASURE_SIZE(4) 코드가 되면 자동으로 새 마디 시작.
+      // 예전엔 2였는데 두 개만 넣어도 마디가 넘어가 [+] 버튼이 무의미했다.
+      // 4/4 한 마디에 4코드 = 코드당 1박이라 음악적으로도 이쪽이 맞다.
       const lastBreak = measureBreaks[measureBreaks.length - 1];
       if (progression.length + 1 - lastBreak === MEASURE_SIZE) {
         setMeasureBreaks(prev => [...prev, progression.length + 1]);
@@ -789,7 +791,8 @@ export default function ChordsTab({ onTranspose }) {
     if (!toAdd.length) return;
     const newLen = startLen + toAdd.length;
     setProgression(prev => [...prev, ...toAdd]);
-    // 마지막 마디 기준 MEASURE_SIZE(2)마다 마디 경계 추가 → 한 마디에 안 몰림
+    // 마지막 마디 기준 MEASURE_SIZE(4)마다 마디 경계 추가 → 한 마디에 안 몰림
+    // (루트는 보통 3~4코드라 대개 한 마디에 들어간다)
     setMeasureBreaks(prev => {
       const breaks = [...prev];
       const lastBreak = breaks[breaks.length - 1];
